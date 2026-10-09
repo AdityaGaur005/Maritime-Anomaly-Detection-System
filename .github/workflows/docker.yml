@@ -8,8 +8,7 @@ on:
 env:
   IMAGE_NAME: maritime-anomaly-api
   # Set these secrets in your GitHub repo settings:
-  #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, ECR_REPOSITORY
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+  #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_ACCOUNT_ID, ECR_REPOSITORY
 
 jobs:
   build-and-push:
@@ -78,6 +77,8 @@ jobs:
 
       - name: Push to ECR
         if: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+        env:
+          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
         run: |
           docker tag $IMAGE_NAME:${{ steps.tag.outputs.TAG }} \
             $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:${{ steps.tag.outputs.TAG }}

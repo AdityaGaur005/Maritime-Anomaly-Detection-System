@@ -2,10 +2,11 @@
 Test client for the anomaly detection API.
 Sends a sequence of simulated AIS points and prints the responses.
 """
-import requests
 import json
-from datetime import datetime, timezone
 import time
+from datetime import datetime, timezone
+
+import requests
 
 API_URL = "http://localhost:8000/predict"
 MMSI = "TEST_MMSI"

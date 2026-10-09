@@ -107,7 +107,7 @@ def main():
 
     # --- Eval 1: same population the grid search selected on (for continuity with your original run) ---
     ap1 = average_precision_score(y_anomaly_test, best_scores)
-    print(f"\n=== Eval 1: within anomaly-vessel test population (matches original tune_isoforest.py metric) ===")
+    print("\n=== Eval 1: within anomaly-vessel test population (matches original tune_isoforest.py metric) ===")
     print(f"AUC={best_auc:.3f}  AP={ap1:.4f}")
 
     pos_mask = y_anomaly_test == 1

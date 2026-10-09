@@ -944,7 +944,7 @@ def main():
     )
 
     print(
-        f"\nSaved model to:"
+        "\nSaved model to:"
     )
 
     print(

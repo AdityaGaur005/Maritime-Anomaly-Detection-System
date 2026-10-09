@@ -12,9 +12,9 @@ IMPORTANT: This test loads all three ML models.  It is automatically skipped
 when model artifacts are not present (e.g., in lightweight CI environments
 that only run unit tests).
 """
+import json
 import os
 import sys
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -91,7 +91,7 @@ def test_score_matches_golden():
 
     # Import feature_factory AFTER setting up the DB path so it picks up the
     # patched module-level state
-    from feature_factory import process_ais_point, _vessel_buffers, _last_raw_point
+    from feature_factory import _last_raw_point, _vessel_buffers, process_ais_point
 
     mmsi = "REGRESSION_TEST_MMSI_v1"
     # Clean any stale state from earlier test runs in the same process

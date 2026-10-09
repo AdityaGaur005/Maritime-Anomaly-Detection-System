@@ -1,6 +1,7 @@
-import pandas as pd
 import json
 from pathlib import Path
+
+import pandas as pd
 
 BASE_DIR = Path(r"C:\Users\Aditya Gaur\Downloads\.vscode\maritime")
 DATA_DIR = BASE_DIR / "HawaiiCoast_GT"
@@ -23,18 +24,18 @@ def main():
         df = pd.read_parquet(path)
         normal = df[df['is_incident'] == 0]
         all_normal.append(normal[['vessel_type_code', 'length_m', 'width_m']])
-    
+
     df_all = pd.concat(all_normal, ignore_index=True)
-    
+
     static_fallback = {
         'vessel_type_code': int(df_all['vessel_type_code'].mode()[0]) if not df_all['vessel_type_code'].isna().all() else 0,
         'length_m': float(df_all['length_m'].median()),
         'width_m': float(df_all['width_m'].median()),
     }
-    
+
     with open(OUTPUT_PATH, "w") as f:
         json.dump(static_fallback, f, indent=2)
-    
+
     print(f"Saved static_fallback to {OUTPUT_PATH}")
     print(static_fallback)
 

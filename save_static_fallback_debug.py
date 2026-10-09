@@ -1,7 +1,8 @@
-import pandas as pd
 import json
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 BASE_DIR = Path(r"C:\Users\Aditya Gaur\Downloads\.vscode\maritime")
 DATA_DIR = BASE_DIR / "HawaiiCoast_GT"
@@ -31,14 +32,14 @@ def main():
                 print(f"ERROR: Column '{col}' missing in {year}")
                 return
         all_normal.append(normal[required])
-    
+
     if not all_normal:
         print("No data loaded. Check YEAR_PATHS.")
         return
-    
+
     df_all = pd.concat(all_normal, ignore_index=True)
     print(f"Total normal points: {len(df_all):,}")
-    
+
     # Compute fallback values with safe handling
     # Mode for vessel_type_code (most common type)
     mode_vals = df_all['vessel_type_code'].mode()
@@ -47,16 +48,16 @@ def main():
     else:
         vessel_type_mode = 0  # default
         print("WARNING: vessel_type_code all NaN, using 0")
-    
+
     static_fallback = {
         'vessel_type_code': vessel_type_mode,
         'length_m': float(df_all['length_m'].median()),
         'width_m': float(df_all['width_m'].median()),
     }
-    
+
     with open(OUTPUT_PATH, "w") as f:
         json.dump(static_fallback, f, indent=2)
-    
+
     print(f"Saved static_fallback to {OUTPUT_PATH}")
     print("Values:", static_fallback)
 

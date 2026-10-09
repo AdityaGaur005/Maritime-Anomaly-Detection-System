@@ -22,13 +22,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "mlops"))
 # Import AFTER setting env var
 import vessel_profile_store as vps
 from vessel_profile_store import (
-    init_db,
+    MIN_BASELINE_POINTS,
+    SAMPLE_SIZE_CAP,
+    SCORE_UPDATE_THRESHOLD,
     get_profile,
+    init_db,
     maybe_update_profile,
     update_static_attributes,
-    MIN_BASELINE_POINTS,
-    SCORE_UPDATE_THRESHOLD,
-    SAMPLE_SIZE_CAP,
 )
 
 

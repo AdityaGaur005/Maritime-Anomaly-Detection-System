@@ -93,7 +93,7 @@ def main():
         dim_feedforward=DIM_FEEDFORWARD,
         dropout=DROPOUT
     ).to(DEVICE)
-    
+
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
     print(f"Training on {DEVICE}")
 
@@ -106,7 +106,7 @@ def main():
     db_path = BASE_DIR / "mlflow.db"
     mlflow.set_tracking_uri(f"sqlite:///{db_path.as_posix()}")
     mlflow.set_experiment("maritime-anomaly-transformer-vae-large")
-    
+
     with mlflow.start_run():
         mlflow.log_params({
             "batch_size": BATCH_SIZE,
@@ -131,7 +131,7 @@ def main():
         for epoch in range(1, EPOCHS + 1):
             # ---- Anneal KL ----
             current_kl = get_kl_weight(epoch)
-            
+
             # ---- Training ----
             model.train()
             train_losses = []
@@ -157,7 +157,7 @@ def main():
 
             train_loss = float(np.mean(train_losses))
             val_loss = float(np.mean(val_losses))
-            
+
             print(f"Epoch {epoch:3d}/{EPOCHS} | KL={current_kl:.4f} | train={train_loss:.5f} | val={val_loss:.5f}")
             mlflow.log_metrics({
                 "train_loss": train_loss,

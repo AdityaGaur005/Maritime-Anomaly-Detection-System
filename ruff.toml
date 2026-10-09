@@ -1,19 +1,30 @@
-[tool.ruff]
 line-length = 100
 target-version = "py311"
 
-[tool.ruff.lint]
+# Exclude data-exploration, preprocessing, and one-off utility scripts.
+# Only mlops/ (serving layer), hybrid/ (training), model/ (architectures),
+# and tests/ are subject to linting.
+exclude = [
+    "HawaiiCoast_GT",
+    "processing",
+    "audit_duplicates.py",
+    ".git",
+    "__pycache__",
+    "*.ipynb",
+]
+
+[lint]
 # E/W: pycodestyle, F: pyflakes, I: isort
 select = ["E", "W", "F", "I"]
 ignore = [
-    "E501",  # line too long — handled by formatter, not linter
-    "F401",  # unused imports in __init__.py files
+    "E501",  # line too long — enforced by formatter, not linter
+    "F401",  # unused imports — too noisy for research scripts
 ]
 
-[tool.ruff.lint.per-file-ignores]
-# Training scripts use * imports and broad patterns
-"hybrid/*.py" = ["F841", "E402"]
-"model/*.py"  = ["F841", "E402"]
-"processing/*.py" = ["F841"]
-# Test files can use assert without message
-"tests/*.py" = ["S101"]
+[lint.per-file-ignores]
+# Training scripts use non-standard import order and broad patterns
+"hybrid/*.py"  = ["F841", "E402", "I001"]
+"model/*.py"   = ["F841", "E402", "I001"]
+# Serving + test code: sys.path manipulation must precede project imports
+"mlops/*.py"   = ["E402"]
+"tests/*.py"   = ["E402", "S101"]

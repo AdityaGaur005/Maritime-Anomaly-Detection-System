@@ -13,21 +13,21 @@ scaling with multiple workers, replace the in-memory dict with a Redis-backed
 store — see mlops/feature_factory.py module docstring.
 """
 
-import sys
-import math
 import logging
+import math
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
-import uvicorn
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR / "mlops"))
 
-from feature_factory import process_ais_point, get_buffer_length
+from feature_factory import get_buffer_length, process_ais_point
 from vessel_profile_store import get_profile, init_db
 
 logger = logging.getLogger(__name__)

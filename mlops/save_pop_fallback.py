@@ -1,7 +1,8 @@
-import pandas as pd
 import json
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 # Paths to your yearly raw AIS parquet files (the ones with per-point data)
 BASE_DIR = Path(r"C:\Users\Aditya Gaur\Downloads\.vscode\maritime")
@@ -28,14 +29,14 @@ def main():
         normal = df[df['is_incident'] == 0]
         print(f"  Normal points: {len(normal):,}")
         all_normal.append(normal)
-    
+
     if not all_normal:
         raise FileNotFoundError("No normal data found. Check your YEAR_PATHS.")
-    
+
     # Concatenate all normal points
     df_all = pd.concat(all_normal, ignore_index=True)
     print(f"Total normal points: {len(df_all):,}")
-    
+
     # Compute statistics exactly as build_hybrid_features.py did
     pop_fallback = {
         'speed_mean': float(df_all['speed_over_ground_knots'].mean()),
@@ -45,10 +46,10 @@ def main():
         'lat_centroid': float(df_all['lat'].median()),
         'lon_centroid': float(df_all['lon'].median()),
     }
-    
+
     with open(OUTPUT_PATH, "w") as f:
         json.dump(pop_fallback, f, indent=2)
-    
+
     print(f"\nSaved pop_fallback to {OUTPUT_PATH}")
     print("Values:")
     for k, v in pop_fallback.items():

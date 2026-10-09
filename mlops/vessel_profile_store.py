@@ -1,10 +1,11 @@
+import json
 import os
 import sqlite3
-import json
-import numpy as np
-from pathlib import Path
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Dict, Optional, Tuple
+
+import numpy as np
 
 # ============================================================
 # CONFIGURATION (Tune these)
@@ -53,7 +54,7 @@ def init_db():
     """Create tables if they don't exist."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        
+
         # Main profile table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS vessel_profile (
@@ -74,7 +75,7 @@ def init_db():
                 last_updated         TEXT
             )
         """)
-        
+
         # Raw sample points table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS vessel_sample_points (
@@ -87,11 +88,11 @@ def init_db():
                 observed_at            TEXT NOT NULL
             )
         """)
-        
+
         # Index for fast lookups and eviction
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_sample_mmsi ON vessel_sample_points(mmsi, observed_at)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_sample_mmsi_id ON vessel_sample_points(mmsi, id)")
-        
+
         conn.commit()
         print("Database initialized successfully.")
 
@@ -113,14 +114,14 @@ def get_profile(mmsi: str) -> Dict:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM vessel_profile WHERE mmsi = ?", (mmsi,))
         row = cursor.fetchone()
-    
+
     # Static attributes: use row values if a real broadcast was received, else training-set medians
     static = {
         "vessel_type_code": row["vessel_type_code"] if row and not row["static_is_default"] else STATIC_FALLBACK["vessel_type_code"],
         "length_m": row["length_m"] if row and not row["static_is_default"] else STATIC_FALLBACK["length_m"],
         "width_m": row["width_m"] if row and not row["static_is_default"] else STATIC_FALLBACK["width_m"],
     }
-    
+
     if row is None or row["point_count"] < MIN_BASELINE_POINTS:
         return {
             **POP_FALLBACK,
@@ -129,7 +130,7 @@ def get_profile(mmsi: str) -> Dict:
             "confidence": "low",
             "point_count": row["point_count"] if row else 0,
         }
-    
+
     return {
         "speed_mean": row["speed_mean"],
         "speed_std": row["speed_std"],
@@ -155,7 +156,7 @@ def _evict_oldest_if_over_cap(mmsi: str, cap: int = SAMPLE_SIZE_CAP):
             (mmsi,)
         )
         count = cursor.fetchone()["cnt"]
-        
+
         if count > cap:
             # Delete the oldest (cap - count) points, sorted by ID (insertion order)
             to_delete = count - cap
@@ -181,7 +182,7 @@ def _recompute_aggregates(mmsi: str):
     """
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        
+
         # Fetch all sample points for this vessel
         cursor.execute(
             """
@@ -192,7 +193,7 @@ def _recompute_aggregates(mmsi: str):
             (mmsi,)
         )
         rows = cursor.fetchall()
-        
+
         if not rows:
             # No points left? Reset profile to NULL
             cursor.execute(
@@ -210,22 +211,22 @@ def _recompute_aggregates(mmsi: str):
             )
             conn.commit()
             return
-        
+
         speeds = np.array([r[0] for r in rows if r[0] is not None])
         headings = np.array([r[1] for r in rows if r[1] is not None])
         lats = np.array([r[2] for r in rows if r[2] is not None])
         lons = np.array([r[3] for r in rows if r[3] is not None])
-        
+
         speed_mean = float(np.mean(speeds)) if len(speeds) > 0 else None
         speed_std = float(np.std(speeds)) + 1e-6 if len(speeds) > 1 else 1.0
         heading_mean = float(np.mean(headings)) if len(headings) > 0 else None
         heading_std = float(np.std(headings)) + 1e-6 if len(headings) > 1 else 1.0
         lat_centroid = float(np.median(lats)) if len(lats) > 0 else None
         lon_centroid = float(np.median(lons)) if len(lons) > 0 else None
-        
+
         sample_count = len(rows)
         baseline_established = 1 if sample_count >= MIN_BASELINE_POINTS else 0
-        
+
         # Update profile
         cursor.execute(
             """
@@ -257,7 +258,7 @@ def _recompute_aggregates(mmsi: str):
 def maybe_update_profile(mmsi: str, point: Dict, model_score: float):
     """
     Conditionally add an incoming AIS point to the vessel's baseline sample.
-    
+
     Args:
         mmsi: Vessel identifier.
         point: Dict with keys 'speed_over_ground_knots', 'heading_change_deg', 'lat', 'lon'.
@@ -267,7 +268,7 @@ def maybe_update_profile(mmsi: str, point: Dict, model_score: float):
     # 1. Score check
     if model_score >= SCORE_UPDATE_THRESHOLD:
         return  # Don't contaminate baseline with anomalous/ambiguous points
-    
+
     # 2. Ensure vessel_profile row exists (insert if missing)
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -276,7 +277,7 @@ def maybe_update_profile(mmsi: str, point: Dict, model_score: float):
             (mmsi,)
         )
         conn.commit()
-    
+
     # 3. Insert the point into the sample
     with get_db_connection() as conn:
         cursor = conn.cursor()
@@ -296,10 +297,10 @@ def maybe_update_profile(mmsi: str, point: Dict, model_score: float):
             )
         )
         conn.commit()
-    
+
     # 4. Enforce cap (evict oldest if over)
     _evict_oldest_if_over_cap(mmsi)
-    
+
     # 5. Recompute aggregates from the current sample
     _recompute_aggregates(mmsi)
 
@@ -336,10 +337,10 @@ def update_static_attributes(mmsi: str, vessel_type: int, length: float, width: 
 if __name__ == "__main__":
     # Initialize the database
     init_db()
-    
+
     # Simulate a new vessel
     mmsi = "TEST_123"
-    
+
     # Simulate a low-score (normal) point
     normal_point = {
         "speed_over_ground_knots": 12.5,
@@ -348,19 +349,19 @@ if __name__ == "__main__":
         "lon": -157.8,
     }
     low_score = 0.02  # Below threshold
-    
+
     print(f"Adding normal point for {mmsi} (score={low_score})...")
     maybe_update_profile(mmsi, normal_point, low_score)
-    
+
     # Check the profile
     profile = get_profile(mmsi)
     print("Profile:", profile)
-    
+
     # Try to add a high-score (risky) point
     high_score = 0.8
     print(f"\nAttempting to add risky point (score={high_score})...")
     maybe_update_profile(mmsi, normal_point, high_score)  # Should be ignored
-    
+
     # Check that point_count didn't increment
     profile2 = get_profile(mmsi)
     print("Profile after ignored point:", profile2)

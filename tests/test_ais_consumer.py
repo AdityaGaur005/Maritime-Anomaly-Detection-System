@@ -18,15 +18,16 @@ MLOPS_DIR = Path(__file__).resolve().parent.parent / "mlops"
 sys.path.insert(0, str(MLOPS_DIR))
 
 from ais_consumer import (
-    AISStreamMessage,
-    ConsumerStats,
     INITIAL_RECONNECT_SEC,
     MAX_RECONNECT_SEC,
     QUEUE_MAXSIZE,
+    AISStreamMessage,
+    ConsumerStats,
     ShipStaticDataMessage,
     StaticDataReportMessage,
     handle_static_message,
     post_prediction,
+    run_consumer,
     translate_to_predict_payload,
 )
 
@@ -440,6 +441,61 @@ class TestQueueDrop:
 
     def test_queue_maxsize_constant(self):
         assert QUEUE_MAXSIZE > 0
+
+
+# ===========================================================================
+# run_consumer auth fail-fast (401 / 403)
+# ===========================================================================
+class TestRunConsumerAuthFail:
+    """
+    A 401 or 403 during the WebSocket handshake must cause run_consumer to
+    return immediately without calling asyncio.sleep (i.e. no retry).
+
+    We patch consume_stream directly — raising websockets.exceptions.InvalidStatus
+    from the inner function — to avoid needing a real WebSocket connection.
+    """
+
+    async def _run_and_collect_sleeps(self, status_code: int) -> list:
+        from contextlib import ExitStack
+
+        import websockets.exceptions
+
+        # Minimal response object: InvalidStatus only needs .status_code + .headers
+        mock_response = type("R", (), {"status_code": status_code, "headers": {}})()
+
+        sleep_calls: list = []
+
+        async def _mock_sleep(delay: float) -> None:
+            sleep_calls.append(delay)
+
+        with ExitStack() as stack:
+            stack.enter_context(patch("ais_consumer.AISSTREAM_API_KEY", "fake-key"))
+            stack.enter_context(
+                patch(
+                    "ais_consumer.consume_stream",
+                    AsyncMock(
+                        side_effect=websockets.exceptions.InvalidStatus(mock_response)
+                    ),
+                )
+            )
+            stack.enter_context(patch("asyncio.sleep", _mock_sleep))
+            mock_cls = stack.enter_context(patch("ais_consumer.httpx.AsyncClient"))
+            mock_cls.return_value = AsyncMock()
+            await run_consumer()
+
+        return sleep_calls
+
+    async def test_401_returns_without_retrying(self):
+        sleep_calls = await self._run_and_collect_sleeps(401)
+        assert sleep_calls == [], (
+            f"run_consumer should not sleep/retry on 401, got: {sleep_calls}"
+        )
+
+    async def test_403_returns_without_retrying(self):
+        sleep_calls = await self._run_and_collect_sleeps(403)
+        assert sleep_calls == [], (
+            f"run_consumer should not sleep/retry on 403, got: {sleep_calls}"
+        )
 
 
 # ===========================================================================

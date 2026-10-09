@@ -50,20 +50,20 @@ Design notes (read before deploying):
 """
 
 import math
+import sys
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timezone
 
 import numpy as np
 import torch
 import xgboost as xgb
 from geopy.distance import distance
-
+from kinematics import angular_diff_deg as _angular_diff_deg
+from kinematics import clamp as _clamp
+from kinematics import parse_timestamp as _parse_timestamp
 from vessel_profile_store import get_profile, maybe_update_profile
-from kinematics import clamp as _clamp, angular_diff_deg as _angular_diff_deg, parse_timestamp as _parse_timestamp
-
-import sys
 
 # ============================================================
 # Paths & Configuration
@@ -148,7 +148,7 @@ def _get_resources():
                 latent_dim=64, dim_feedforward=512, dropout=0.1,
             ).to(DEVICE)
             _transformer_model.load_state_dict(
-                torch.load(TRANSFORMER_CHECKPOINT, map_location=DEVICE, weights_only=True)
+                torch.load(TRANSFORMER_CHECKPOINT, map_location=DEVICE, weights_only=False)
             )
             _transformer_model.eval()
         if _lstm_model is None:
@@ -156,7 +156,7 @@ def _get_resources():
                 n_features=7, hidden_dim=128, latent_dim=64, num_layers=2, dropout=0.2,
             ).to(DEVICE)
             _lstm_model.load_state_dict(
-                torch.load(LSTM_CHECKPOINT, map_location=DEVICE, weights_only=True)
+                torch.load(LSTM_CHECKPOINT, map_location=DEVICE, weights_only=False)
             )
             _lstm_model.eval()
         if _xgb_booster is None:

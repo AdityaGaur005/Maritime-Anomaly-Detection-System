@@ -8,27 +8,29 @@ Delta-computation tests (_compute_deltas) require feature_factory which loads
 all heavy deps; those tests are skipped if torch is not installed.
 """
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
 
 import pytest
 
 MLOPS_DIR = Path(__file__).resolve().parent.parent / "mlops"
 sys.path.insert(0, str(MLOPS_DIR))
 
-from kinematics import clamp as _clamp, angular_diff_deg as _angular_diff_deg, parse_timestamp as _parse_timestamp
+from kinematics import angular_diff_deg as _angular_diff_deg
+from kinematics import clamp as _clamp
+from kinematics import parse_timestamp as _parse_timestamp
 
 # _compute_deltas lives in feature_factory which requires torch
 torch_available = True
 try:
     from feature_factory import (
-        _compute_deltas,
-        _vessel_buffers,
-        _last_raw_point,
-        COMPUTED_SPEED_BOUNDS,
         ACCELERATION_BOUNDS,
+        COMPUTED_SPEED_BOUNDS,
         HEADING_CHANGE_BOUNDS,
         MIN_DELTA_TIME_SEC,
+        _compute_deltas,
+        _last_raw_point,
+        _vessel_buffers,
     )
 except ModuleNotFoundError:
     torch_available = False
