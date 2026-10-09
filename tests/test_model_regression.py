@@ -83,10 +83,13 @@ def _build_sequence(mmsi: str):
     return points
 
 
-def test_score_matches_golden():
+def test_score_matches_golden(tmp_path):
     import vessel_profile_store as vps
-    # Use in-memory DB for this test
-    vps.DB_PATH = Path(":memory:")
+    # Use a real temp file: sqlite3.connect(":memory:") creates a NEW database
+    # on every call, so init_db() and get_profile() would each see empty DBs.
+    db_file = tmp_path / "regression_test.db"
+    vps.DB_PATH = db_file
+    os.environ["VESSEL_DB_PATH"] = str(db_file)
     vps.init_db()
 
     # Import feature_factory AFTER setting up the DB path so it picks up the
