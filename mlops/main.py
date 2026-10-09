@@ -67,10 +67,13 @@ app = FastAPI(
 
 @app.exception_handler(RequestValidationError)
 async def _validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
-    # Starlette's default handler includes the raw input value in the response,
-    # which breaks JSON serialisation when the input is non-finite (nan/inf).
-    # Strip the 'input' key so the response is always valid JSON.
-    safe_errors = [{k: v for k, v in e.items() if k != "input"} for e in exc.errors()]
+    # Starlette's default handler echoes 'input' (can be nan/inf) and 'ctx'
+    # (contains the raw Exception object) — neither is JSON-serialisable.
+    # Keep only 'type', 'loc', 'msg' which are always safe strings/tuples.
+    safe_errors = [
+        {k: v for k, v in e.items() if k not in ("input", "ctx")}
+        for e in exc.errors()
+    ]
     return JSONResponse(status_code=422, content={"detail": safe_errors})
 
 
