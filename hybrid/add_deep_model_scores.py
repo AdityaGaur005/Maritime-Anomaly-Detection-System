@@ -27,10 +27,10 @@ import pandas as pd
 import torch
 from pathlib import Path
 
-BASE_DIR = Path(r"C:\Users\Aditya Gaur\Downloads\.vscode\maritime")
+BASE_DIR = Path(__file__).resolve().parent.parent  # repo root
 HYBRID_DIR = BASE_DIR / "hybrid"
 PROCESSING_DIR = BASE_DIR / "processing"
-MODEL_DIR = BASE_DIR / "MODEL"
+MODEL_DIR = BASE_DIR / "model"
 
 sys.path.insert(0, str(MODEL_DIR))
 from model import TransformerVAE                      # noqa: E402
@@ -40,6 +40,8 @@ CHANNELS = ['lat', 'lon', 'speed', 'course', 'computed_speed', 'acceleration', '
 
 TRANS_CKPT = MODEL_DIR / "best_model_large.pt"
 LSTM_CKPT = MODEL_DIR / "lstm_ae_run" / "lstm_ae_best.pt"
+NORM_MEAN_PATH = PROCESSING_DIR / "norm_mean.npy"
+NORM_STD_PATH = PROCESSING_DIR / "norm_std.npy"
 
 D_MODEL, NHEAD, NUM_LAYERS, LATENT_DIM, DIM_FEEDFORWARD, DROPOUT = 256, 8, 6, 64, 512, 0.1
 
@@ -107,8 +109,8 @@ def main():
     X_raw = np.load(HYBRID_DIR / f"hybrid_sequences_{mode}.npy")
     assert len(df) == len(X_raw), "Row count mismatch — rerun build_hybrid_features.py"
 
-    mean = np.load(PROCESSING_DIR / "norm_mean.npy")
-    std = np.load(PROCESSING_DIR / "norm_std.npy")
+    mean = np.load(NORM_MEAN_PATH)
+    std = np.load(NORM_STD_PATH)
     X_norm = ((X_raw - mean) / (std + 1e-8)).astype(np.float32)
 
     n_features, seq_len = X_norm.shape[2], X_norm.shape[1]

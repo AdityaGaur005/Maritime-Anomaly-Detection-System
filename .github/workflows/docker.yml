@@ -1,0 +1,87 @@
+name: Docker build, scan, and push
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: maritime-anomaly-api
+  # Set these secrets in your GitHub repo settings:
+  #   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, ECR_REPOSITORY
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+jobs:
+  build-and-push:
+    name: Build, scan, and push to ECR
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------ #
+      # Build
+      # ------------------------------------------------------------------ #
+      - name: Set image tag
+        id: tag
+        run: echo "TAG=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t $IMAGE_NAME:${{ steps.tag.outputs.TAG }} \
+            -t $IMAGE_NAME:latest \
+            -f dockerfile .
+
+      # ------------------------------------------------------------------ #
+      # Smoke-test the image before pushing
+      # ------------------------------------------------------------------ #
+      - name: Smoke test — health endpoint
+        run: |
+          docker run --rm -d \
+            --name maritime_test \
+            -p 8000:8000 \
+            -e VESSEL_DB_PATH=/tmp/test.db \
+            $IMAGE_NAME:${{ steps.tag.outputs.TAG }}
+          # Wait for startup (models take ~10s to load)
+          sleep 30
+          curl --fail http://localhost:8000/health
+          docker stop maritime_test
+
+      # ------------------------------------------------------------------ #
+      # Security scan (Trivy)
+      # ------------------------------------------------------------------ #
+      - name: Scan image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.TAG }}
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL"
+          ignore-unfixed: true
+
+      # ------------------------------------------------------------------ #
+      # Push to ECR (only if secrets are configured)
+      # ------------------------------------------------------------------ #
+      - name: Configure AWS credentials
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push to ECR
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+        run: |
+          docker tag $IMAGE_NAME:${{ steps.tag.outputs.TAG }} \
+            $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:${{ steps.tag.outputs.TAG }}
+          docker tag $IMAGE_NAME:latest \
+            $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:latest
+          docker push $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:${{ steps.tag.outputs.TAG }}
+          docker push $ECR_REGISTRY/${{ secrets.ECR_REPOSITORY }}:latest

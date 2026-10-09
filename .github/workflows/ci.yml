@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff==0.6.9
+
+      - name: Run ruff
+        run: ruff check .
+
+  unit-tests:
+    name: Unit tests (no models)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest
+
+      - name: Run unit tests
+        # Skip tests that require model artifacts (test_api, test_model_regression)
+        # Those run in the integration job which has model files cached.
+        env:
+          VESSEL_DB_PATH: ":memory:"
+        run: |
+          pytest tests/test_kinematics.py tests/test_vessel_profile_store.py tests/test_ais_consumer.py -v
+
+  integration-tests:
+    name: Integration tests (with models)
+    runs-on: ubuntu-latest
+    # Only run on pushes to main or PRs targeting main to save CI minutes
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pytest httpx
+
+      # Model artifacts are tracked in git (*.pt files were committed before
+      # the .gitignore *.pt rule was added). They are present in the checkout.
+      - name: Verify model artifacts present
+        run: |
+          test -f hybrid/xgboost_hybrid_final.json
+          test -f model/best_model_large.pt
+          test -f model/lstm_ae_run/lstm_ae_best.pt
+          test -f processing/norm_mean.npy
+          test -f processing/norm_std.npy
+
+      - name: Run all tests
+        env:
+          VESSEL_DB_PATH: ":memory:"
+        run: pytest tests/ -v --tb=short

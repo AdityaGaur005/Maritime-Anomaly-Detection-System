@@ -43,8 +43,8 @@ KINEMATIC_FEATURES = [
     'heading_change_deg',
 ]
 
-BASE_DIR = Path(r"C:\Users\Aditya Gaur\Downloads\.vscode\maritime")
-DATA_DIR = BASE_DIR / "gaur" / "HawaiiCoast_GT"
+BASE_DIR = Path(__file__).resolve().parent.parent  # repo root
+DATA_DIR = BASE_DIR / "HawaiiCoast_GT"
 OUT_DIR = BASE_DIR / "hybrid"
 OUT_DIR.mkdir(exist_ok=True)
 

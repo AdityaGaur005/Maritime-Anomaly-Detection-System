@@ -50,6 +50,7 @@ Design notes (read before deploying):
 """
 
 import math
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timezone
@@ -60,6 +61,7 @@ import xgboost as xgb
 from geopy.distance import distance
 
 from vessel_profile_store import get_profile, maybe_update_profile
+from kinematics import clamp as _clamp, angular_diff_deg as _angular_diff_deg, parse_timestamp as _parse_timestamp
 
 import sys
 
@@ -121,62 +123,48 @@ CHANNEL_NAMES = ["lat", "lon", "speed", "course", "computed_speed", "acceleratio
 KIN_ORDER = ["lat", "lon", "sog", "cog", "computed_speed", "acceleration", "heading_change"]
 
 
-def _clamp(value: float, bounds: Tuple[float, float]) -> float:
-    lo, hi = bounds
-    return max(lo, min(hi, value))
-
-
-def _angular_diff_deg(a: float, b: float) -> float:
-    """Smallest absolute angular difference between two headings, in [0, 180]."""
-    diff = abs(a - b) % 360.0
-    return diff if diff <= 180.0 else 360.0 - diff
-
-
-def _parse_timestamp(ts) -> datetime:
-    if isinstance(ts, datetime):
-        # If naive, assume UTC
-        if ts.tzinfo is None:
-            return ts.replace(tzinfo=timezone.utc)
-        return ts
-    # If string, parse and ensure timezone-aware
-    dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt
-
-
 # ============================================================
-# Deep model loading (lazy singletons)
+# Deep model loading (lazy singletons, thread-safe)
 # ============================================================
 _transformer_model = None
 _lstm_model = None
 _xgb_booster = None
 _norm_mean = None
 _norm_std = None
+_resources_lock = threading.Lock()
 
 
 def _get_resources():
     global _transformer_model, _lstm_model, _xgb_booster, _norm_mean, _norm_std
-    if _transformer_model is None:
-        _transformer_model = TransformerVAE(
-            n_features=7, seq_len=WINDOW_SIZE,
-            d_model=256, nhead=8, num_layers=6,
-            latent_dim=64, dim_feedforward=512, dropout=0.1,
-        ).to(DEVICE)
-        _transformer_model.load_state_dict(torch.load(TRANSFORMER_CHECKPOINT, map_location=DEVICE))
-        _transformer_model.eval()
-    if _lstm_model is None:
-        _lstm_model = LSTMAutoencoder(
-            n_features=7, hidden_dim=128, latent_dim=64, num_layers=2, dropout=0.2,
-        ).to(DEVICE)
-        _lstm_model.load_state_dict(torch.load(LSTM_CHECKPOINT, map_location=DEVICE))
-        _lstm_model.eval()
-    if _xgb_booster is None:
-        _xgb_booster = xgb.Booster()
-        _xgb_booster.load_model(str(XGB_MODEL_PATH))
-    if _norm_mean is None:
-        _norm_mean = np.load(NORM_MEAN_PATH)
-        _norm_std = np.load(NORM_STD_PATH)
+    # Fast path — all resources already loaded (no lock needed for reads in CPython).
+    if _transformer_model is not None:
+        return _transformer_model, _lstm_model, _xgb_booster, _norm_mean, _norm_std
+    with _resources_lock:
+        # Re-check under the lock; another thread may have loaded while we waited.
+        if _transformer_model is None:
+            _transformer_model = TransformerVAE(
+                n_features=7, seq_len=WINDOW_SIZE,
+                d_model=256, nhead=8, num_layers=6,
+                latent_dim=64, dim_feedforward=512, dropout=0.1,
+            ).to(DEVICE)
+            _transformer_model.load_state_dict(
+                torch.load(TRANSFORMER_CHECKPOINT, map_location=DEVICE, weights_only=True)
+            )
+            _transformer_model.eval()
+        if _lstm_model is None:
+            _lstm_model = LSTMAutoencoder(
+                n_features=7, hidden_dim=128, latent_dim=64, num_layers=2, dropout=0.2,
+            ).to(DEVICE)
+            _lstm_model.load_state_dict(
+                torch.load(LSTM_CHECKPOINT, map_location=DEVICE, weights_only=True)
+            )
+            _lstm_model.eval()
+        if _xgb_booster is None:
+            _xgb_booster = xgb.Booster()
+            _xgb_booster.load_model(str(XGB_MODEL_PATH))
+        if _norm_mean is None:
+            _norm_mean = np.load(NORM_MEAN_PATH)
+            _norm_std = np.load(NORM_STD_PATH)
     return _transformer_model, _lstm_model, _xgb_booster, _norm_mean, _norm_std
 
 
@@ -329,6 +317,11 @@ def _score(feature_vector: np.ndarray) -> float:
 # ============================================================
 # Public API
 # ============================================================
+def get_buffer_length(mmsi: str) -> int:
+    """Return how many enriched points are currently buffered for a vessel."""
+    return len(_vessel_buffers.get(str(mmsi), []))
+
+
 def process_ais_point(raw_point: Dict) -> Dict:
     """
     Main entry point for the serving layer (call once per incoming AIS message).
@@ -367,7 +360,19 @@ def process_ais_point(raw_point: Dict) -> Dict:
     window = buf[-WINDOW_SIZE:]
     feature_vector = _extract_features(mmsi, window)
     score = _score(feature_vector)
-    maybe_update_profile(mmsi, normalized_raw, score)
+
+    # Pass the enriched point (which carries the computed kinematic fields) so
+    # the vessel profile store receives non-NULL speed and heading values.
+    # normalized_raw only has {lat, lon, sog, cog, ts} — it is missing
+    # heading_change entirely, and its speed key is "sog" not the column name
+    # the store expects.
+    profile_point = {
+        "speed_over_ground_knots": enriched["sog"],
+        "heading_change_deg": enriched["heading_change"],
+        "lat": enriched["lat"],
+        "lon": enriched["lon"],
+    }
+    maybe_update_profile(mmsi, profile_point, score)
 
     return {
         "mmsi": mmsi,

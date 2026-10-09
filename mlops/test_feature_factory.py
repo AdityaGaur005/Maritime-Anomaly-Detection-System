@@ -15,12 +15,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-BASE_DIR = Path(r"C:\Users\Aditya Gaur\Downloads\.vscode\maritime")
+BASE_DIR = Path(__file__).resolve().parent.parent  # repo root
 XGB_MODEL = BASE_DIR / "hybrid" / "xgboost_hybrid_final.json"
-FEATURES_PATH = (
-    BASE_DIR/ "hybrid"/ "hybrid_features_clean_2020_with_scores.parquet"
-)
-# Allow importing feature_factory.py
+FEATURES_PATH = BASE_DIR / "hybrid" / "hybrid_features_clean_2020_with_scores.parquet"
 sys.path.insert(0, str(BASE_DIR / "mlops"))
 from feature_factory import FEATURE_NAMES
 

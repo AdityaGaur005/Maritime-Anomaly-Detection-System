@@ -24,7 +24,7 @@ import pandas as pd
 import xgboost as xgb
 from pathlib import Path
 
-BASE_DIR = Path(r"C:\Users\Aditya Gaur\Downloads\.vscode\maritime")
+BASE_DIR = Path(__file__).resolve().parent.parent  # repo root
 HYBRID_DIR = BASE_DIR / "hybrid"
 
 SEED = 42

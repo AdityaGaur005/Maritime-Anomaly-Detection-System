@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import json
 import numpy as np
@@ -10,9 +11,15 @@ from typing import Dict, Optional, Tuple
 # ============================================================
 MIN_BASELINE_POINTS = 50
 SAMPLE_SIZE_CAP = 2000
-SCORE_UPDATE_THRESHOLD = 0.77  
-DB_PATH = Path("vessel_profiles.db")
-POP_FALLBACK_PATH = Path("pop_fallback.json")
+SCORE_UPDATE_THRESHOLD = 0.77
+
+# DB_PATH resolves via VESSEL_DB_PATH env var so the container can mount a
+# persistent volume: docker run -e VESSEL_DB_PATH=/data/vessel_profiles.db ...
+DB_PATH = Path(os.environ.get("VESSEL_DB_PATH", "vessel_profiles.db"))
+
+_MODULE_DIR = Path(__file__).resolve().parent
+_REPO_ROOT = _MODULE_DIR.parent  # Maritime-Anomaly-Detection-System/
+POP_FALLBACK_PATH = _REPO_ROOT / "pop_fallback.json"
 
 # ============================================================
 # POPULATION FALLBACK (Load from training config)
@@ -91,7 +98,7 @@ def init_db():
 # ============================================================
 # PROFILE QUERY (Cold-start logic)
 # ============================================================
-STATIC_FALLBACK_PATH = Path("static_fallback.json")
+STATIC_FALLBACK_PATH = _REPO_ROOT / "static_fallback.json"
 
 def load_static_fallback() -> Dict:
     if STATIC_FALLBACK_PATH.exists():

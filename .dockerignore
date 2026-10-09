@@ -8,6 +8,7 @@ __pycache__
 *.egg-info
 dist
 build
+# SQLite databases — mount a volume at runtime via VESSEL_DB_PATH
 *.db
 *.sqlite
 *.sqlite3
@@ -18,4 +19,8 @@ README.md
 .venv
 env
 venv
-*.npy   # if you don't want to copy the massive .npy files? Actually you need them! So don't ignore them.
+# Exclude large training .npy sequences but KEEP the normalization params
+# that the serving code needs at runtime.
+*.npy
+!processing/norm_mean.npy
+!processing/norm_std.npy

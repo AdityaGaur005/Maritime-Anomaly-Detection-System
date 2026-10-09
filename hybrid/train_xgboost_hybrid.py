@@ -35,7 +35,7 @@ from sklearn.metrics import (
 # PATHS
 # ============================================================
 
-BASE_DIR = Path(r"C:\Users\Aman Hooda\Desktop\gaur")
+BASE_DIR = Path(__file__).resolve().parent.parent  # repo root
 HYBRID_DIR = BASE_DIR / "hybrid"
 
 
