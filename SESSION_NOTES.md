@@ -381,3 +381,61 @@ Add a CLI-parameterised training entrypoint so models can be retrained without e
 - **Single-worker SQLite writes are not async-safe.** `vessel_profile_store` uses synchronous SQLite with per-call connections. If Uvicorn is run with `--workers > 1`, concurrent requests for the same MMSI can race. Fix: Redis-backed store or a single async writer task.
 - **No authentication on `/predict`.** The API is open. For production, add an API key header or put it behind an AWS API Gateway with IAM auth.
 - **Golden score file (`tests/golden_score.json`) is absent until first integration run.** The first run after a model change will write the file and skip; the second run enforces it. This is by design but the file should be committed after the first integration run so subsequent CI runs actually validate regression.
+
+---
+
+# Addendum (2026-10-13) — Live aisstream.io validation, region choice, ship-specific monitoring
+
+## What aisstream.io's free service actually gives (docs + live probes)
+
+| Item | Finding |
+|---|---|
+| Monthly quota | **None documented.** (The "100k messages/month" figure in earlier notes was unverified and should be ignored.) |
+| Real volume | Hawaii main islands: ~10 msgs/min total (~30 KB / 5 min). A 6-ship watchlist: ~1.7 msgs/min. Bandwidth is not a constraint. |
+| Limits | `FiltersShipMMSI` max **200** MMSIs; **3** subscribed connections per account (and 3 per IP); 1 subscription update/sec; subscription must arrive within 3 s. |
+| History | **Real-time only.** No replay. A ship's track exists only while we are connected. |
+| Coverage | Terrestrial receivers. **India: 0 position reports in 5 min** over 0–30°N, 60–100°E. Hawaii: 18 ships in 5 min. |
+| Compression | Uncompressed connections are bandwidth-limited from Sept 2026 → `compression="deflate"` is set explicitly. |
+| Slow readers | Server drops messages if we read too slowly. |
+
+## Region decision: Hawaii (main islands), not India
+
+1. **No data in India** (probe above), so there is nothing to monitor.
+2. **The model is Hawaii-specific even if data existed.** XGBoost splits only cover `lat_mean` 19.6–22.7, `lon_mean` −159.3…−155.7 and `dist_from_vessel_centroid_km` 0–316. `pop_fallback.json` sets every new vessel's cold-start centroid to Honolulu, so an Indian ship would sit ~12,000 km from its "centroid" → pegged anomaly → baseline (score-gated, needs 50 low-score samples) never forms.
+3. Default bounding box is now `[[18.5,-161.0],[22.8,-154.5]]` (the model's domain).
+
+Moving to India would need a regional retrain (Phase 8 territory) *and* a data source with Indian coverage.
+
+## Ship-specific monitoring (how not to waste data)
+
+* `mlops/discover_vessels.py` listens, ranks ships by **under-way** reports and writes `watchlist.json`
+  (`python -m mlops.discover_vessels --minutes 30 --top 25`). Moored ships give flat, useless tracks.
+* `mlops/ais_consumer.py` reads `watchlist.json` (or `WATCHLIST_MMSIS`) and sends `FiltersShipMMSI`, so the server only sends those ships.
+* **Per-ship downsampling** (`MIN_POSITION_INTERVAL_SEC=60`): training cadence was ~60–90 s (XGBoost `delta_time_mean` splits start ~65 s) but Class A ships under way broadcast every 2–10 s.
+* Realistic warm-up: a ship needs ~31 consecutive reports (≈ 35+ min in continuous range) before it is scored, and 50 low-score samples before it has its own baseline. Pick ships that stay near Oahu (ferries, tugs, tour boats, harbour craft).
+
+## Bugs found only by testing against the real feed (all fixed, with real-capture regression fixtures in `tests/fixtures/aisstream_samples.json`)
+
+1. `MMSI_String` is an **int** on the wire → Pydantic rejected **100%** of messages.
+2. `time_utc` is `2026-10-13 15:01:50.32030298 +0000 UTC` (not ISO, 8–9 fractional digits) → now converted.
+3. `StaticDataReport` Part B type field is `ShipType` (not `TypeOfShipAndCargoType`), `PartNumber` is a bool, and Part A carries an all-zero `Valid:false` placeholder `ReportB` → would have written zeros into profiles.
+4. `update_static_attributes()` silently did nothing for vessels without a profile row (static data arrives first) → now an upsert; `None` no longer overwrites; `get_profile()` falls back per-field.
+5. **Auth failure is not HTTP 401/403.** A bad key just drops the connection (no error message). The 401/403 tests from Phase 4 passed but covered a path real failures never take. Now the consumer stops after 3 consecutive connections that close before `SubscriptionConfirmation`; connect-level failures (network down) never count.
+6. API key field is documented as `APIKey` (was sent as `APIkey`).
+7. Class B transponders (types 18/19, ~30% of position traffic) were ignored; now ingested.
+8. AIS "not available" sentinels (Sog 102.3, Cog 360, lat 91, lon 181) are filtered instead of being scored.
+9. Consumer crashed if started before the API had created the shared SQLite tables; it now calls `init_db()` and treats DB errors as non-fatal.
+
+## How to run (key stays in the environment, never in a file that is committed; `.env` is now gitignored)
+
+```bash
+export AISSTREAM_API_KEY=...            # from your aisstream.io account
+python -m mlops.discover_vessels --minutes 30 --top 25   # writes watchlist.json (edit by hand if you like)
+uvicorn mlops.main:app --port 8000                        # terminal 1
+python -m mlops.ais_consumer                              # terminal 2
+```
+
+## Still not verified
+
+* Real `/predict` scoring of live data (torch/xgboost are not installed in the dev sandbox). The live path was verified end-to-end against a stub that mirrors the API's input validation; the real models are covered by the CI integration job.
+* Whether live anomaly scores are well-calibrated (P90 threshold 0.77 / 0.85) on 2026 data vs the 2017–2020 training data.

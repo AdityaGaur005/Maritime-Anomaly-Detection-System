@@ -48,7 +48,7 @@ jobs:
         env:
           VESSEL_DB_PATH: ":memory:"
         run: |
-          pytest tests/test_kinematics.py tests/test_vessel_profile_store.py tests/test_ais_consumer.py -v
+          pytest tests/test_kinematics.py tests/test_vessel_profile_store.py tests/test_ais_consumer.py tests/test_discover_vessels.py -v
 
   integration-tests:
     name: Integration tests (with models)

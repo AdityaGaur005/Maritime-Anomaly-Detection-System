@@ -237,3 +237,39 @@ def test_update_static_attributes():
     assert profile["vessel_type_code"] == 70
     assert profile["length_m"] == pytest.approx(150.0)
     assert profile["width_m"] == pytest.approx(25.0)
+
+
+def test_update_static_attributes_creates_row_for_unseen_vessel():
+    """Static broadcasts arrive before any baseline sample; they must not be lost."""
+    mmsi = "STATIC_FIRST"
+    update_static_attributes(mmsi, vessel_type=54, length=59.0, width=14.0)
+    profile = get_profile(mmsi)
+    assert profile["vessel_type_code"] == 54
+    assert profile["length_m"] == pytest.approx(59.0)
+    assert profile["width_m"] == pytest.approx(14.0)
+    assert profile["baseline_is_fallback"] == 1  # still no motion baseline
+
+
+def test_update_static_attributes_none_keeps_existing_values():
+    mmsi = "STATIC_PARTIAL"
+    update_static_attributes(mmsi, vessel_type=70, length=150.0, width=25.0)
+    update_static_attributes(mmsi, vessel_type=None, length=160.0, width=None)
+    profile = get_profile(mmsi)
+    assert profile["vessel_type_code"] == 70
+    assert profile["length_m"] == pytest.approx(160.0)
+    assert profile["width_m"] == pytest.approx(25.0)
+
+
+def test_partial_static_report_falls_back_per_field():
+    """Only the type is known -> length/width use fallbacks instead of NULL (which would crash scoring)."""
+    mmsi = "STATIC_TYPE_ONLY"
+    update_static_attributes(mmsi, vessel_type=37)
+    profile = get_profile(mmsi)
+    assert profile["vessel_type_code"] == 37
+    assert profile["length_m"] is not None
+    assert profile["width_m"] is not None
+
+
+def test_update_static_attributes_with_nothing_is_a_noop():
+    update_static_attributes("STATIC_NOTHING")
+    assert get_profile("STATIC_NOTHING")["point_count"] == 0

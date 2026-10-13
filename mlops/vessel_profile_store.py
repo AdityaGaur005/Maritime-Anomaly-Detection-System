@@ -115,12 +115,14 @@ def get_profile(mmsi: str) -> Dict:
         cursor.execute("SELECT * FROM vessel_profile WHERE mmsi = ?", (mmsi,))
         row = cursor.fetchone()
 
-    # Static attributes: use row values if a real broadcast was received, else training-set medians
-    static = {
-        "vessel_type_code": row["vessel_type_code"] if row and not row["static_is_default"] else STATIC_FALLBACK["vessel_type_code"],
-        "length_m": row["length_m"] if row and not row["static_is_default"] else STATIC_FALLBACK["length_m"],
-        "width_m": row["width_m"] if row and not row["static_is_default"] else STATIC_FALLBACK["width_m"],
-    }
+    # Static attributes: use row values if a real broadcast was received, else training-set
+    # medians. Per-field, because a partial static report may only know some of them.
+    def _static(field: str):
+        if row and not row["static_is_default"] and row[field] is not None:
+            return row[field]
+        return STATIC_FALLBACK[field]
+
+    static = {f: _static(f) for f in ("vessel_type_code", "length_m", "width_m")}
 
     if row is None or row["point_count"] < MIN_BASELINE_POINTS:
         return {
@@ -307,16 +309,30 @@ def maybe_update_profile(mmsi: str, point: Dict, model_score: float):
 # ============================================================
 # CONVENIENCE: Get static vessel attributes (if available)
 # ============================================================
-def update_static_attributes(mmsi: str, vessel_type: int, length: float, width: float):
-    """Update the static attributes of a vessel (from AIS static reports)."""
+def update_static_attributes(
+    mmsi: str,
+    vessel_type: Optional[int] = None,
+    length: Optional[float] = None,
+    width: Optional[float] = None,
+):
+    """
+    Upsert the static attributes of a vessel (from AIS static reports).
+
+    Creates the profile row if the vessel has none yet (static broadcasts
+    usually arrive before the first baseline sample). A None argument leaves
+    the stored value untouched, so partial reports never blank out good data.
+    """
+    if vessel_type is None and length is None and width is None:
+        return
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        cursor.execute("INSERT OR IGNORE INTO vessel_profile (mmsi) VALUES (?)", (mmsi,))
         cursor.execute(
             """
             UPDATE vessel_profile
-            SET vessel_type_code = ?,
-                length_m = ?,
-                width_m = ?,
+            SET vessel_type_code = COALESCE(?, vessel_type_code),
+                length_m = COALESCE(?, length_m),
+                width_m = COALESCE(?, width_m),
                 static_is_default = 0,
                 last_updated = ?
             WHERE mmsi = ?
