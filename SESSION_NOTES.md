@@ -439,3 +439,110 @@ python -m mlops.ais_consumer                              # terminal 2
 
 * Real `/predict` scoring of live data (torch/xgboost are not installed in the dev sandbox). The live path was verified end-to-end against a stub that mirrors the API's input validation; the real models are covered by the CI integration job.
 * Whether live anomaly scores are well-calibrated (P90 threshold 0.77 / 0.85) on 2026 data vs the 2017–2020 training data.
+
+---
+
+# Session Notes — 2026-10-14 (Dev Environment Fix + System Audit)
+
+**Date:** 2026-10-14
+**Branch:** `main`
+**Commit:** `1eca5a1`
+
+---
+
+## What was done
+
+### 1. Dev environment fixed — all 161 tests now pass locally
+
+The dev machine runs **Python 3.8.10** but `requirements.txt` was pinned for Python 3.11.
+`numpy==1.26.4`, `scikit-learn==1.5.2`, and `pandas==2.2.3` all require Python 3.9+,
+so the install failed and model-dependent tests (`test_api.py`, `test_model_regression.py`)
+were erroring out with `ModuleNotFoundError`.
+
+**Fix:** installed Python 3.8-compatible versions directly:
+- `numpy` 1.24.4 (already present)
+- `scikit-learn` 1.3.2
+- `pandas` 2.0.3
+- `torch` 2.4.1 (has a cp38 wheel, 797 MB cached)
+- `xgboost` 2.1.1, `fastapi` 0.115.0, and all other deps
+
+The trained model files (`.pt`, `.json`) were already committed in the repo — nothing
+needed from another device. After installing, the full suite ran locally: **161 passed, 0 failed**.
+
+### 2. Golden score file committed (`tests/golden_score.json`)
+
+`test_score_matches_golden` was skipping on first run because `golden_score.json` did not
+exist yet. Running the test once generated it (`{"final_score": 0.9153…, "n_scores": 20}`),
+and it was committed so CI enforces the value on every subsequent push.
+
+### 3. System audit — profile update loop confirmed closed
+
+An earlier concern was that `maybe_update_profile()` was not being called after scoring,
+meaning vessel baselines would never learn from live data.
+
+**Finding: the loop is already closed.** The call chain is:
+
+```
+POST /predict
+  → main.py::predict()
+  → feature_factory.py::process_ais_point()     ← calls maybe_update_profile() at line 375
+  → vessel_profile_store.py::maybe_update_profile()
+  → writes to vessel_sample_points + updates vessel_profile aggregates
+```
+
+`maybe_update_profile` only writes a point if `model_score < SCORE_UPDATE_THRESHOLD (0.77)`,
+so anomalous/ambiguous points never contaminate the baseline — this is intentional.
+
+---
+
+## Current project state (Final Year Project + Paper)
+
+### What is fully working
+
+| Component | Status |
+|---|---|
+| Trained XGBoost hybrid model | ✓ committed, tested |
+| FastAPI `/predict` endpoint | ✓ all tests pass |
+| AIS consumer (live aisstream.io data) | ✓ validated live |
+| Vessel profile store (per-ship baseline learning) | ✓ loop confirmed closed |
+| Ship discovery / watchlist (`discover_vessels.py`) | ✓ tested |
+| CI/CD pipeline | ✓ green |
+| 161 unit + integration tests | ✓ all passing |
+| Golden score regression test | ✓ committed |
+
+### What is NOT done (from phases roadmap)
+
+| Phase | What's needed | Priority for paper |
+|---|---|---|
+| 7 | Prometheus `/metrics` endpoint; replace `print()` in `init_db()` | Low — logs exist |
+| 8 | `drift_monitor.py` — detect when ship behaviour shifts over weeks | Medium |
+| 9 | Cloud deployment (Terraform/CDK for AWS/GCP) | Optional for demo |
+| 10 | Real end-to-end live scoring validation (was stub-only) | NOW FIXED — can run locally |
+| 11 | Thesis write-up | Out of scope for code |
+
+### How data flows (explained simply)
+
+1. **aisstream.io** is a real-time WebSocket feed — it does NOT store history. Data only
+   arrives while `ais_consumer.py` is running.
+
+2. **Ship selection:** run `discover_vessels.py` for 30+ min → it ranks ships by how many
+   "under way" reports they sent → writes `watchlist.json`. The consumer reads this file
+   and asks aisstream to filter to only those MMSIs (up to 200).
+
+3. **Storage:** everything goes into a local SQLite file (`vessel_profiles.db`):
+   - `vessel_sample_points` — raw position snapshots per ship (capped at 2000/ship)
+   - `vessel_profile` — per-ship aggregates (speed mean/std, heading mean/std, lat/lon centroid)
+   - A ship needs **50 samples (~50 min of under-way sailing)** before it has its own baseline.
+     Until then, the system uses population-level Hawaii defaults (cold-start fallback).
+
+4. **Scoring:** each incoming position → feature extraction over the last 30 points →
+   XGBoost hybrid score (0–1) → if score ≥ 0.85 → `is_anomaly: true`. If score < 0.77,
+   the point is added to the ship's personal baseline.
+
+### Next recommended steps for the paper
+
+1. Run `discover_vessels.py` for 1 hour to build a good watchlist of active Hawaiian ships.
+2. Run the full stack (`uvicorn` + `ais_consumer`) continuously for several days.
+3. Let 3–5 ships accumulate 50+ samples so they switch from fallback to personal baselines.
+4. Collect anomaly scores over time and include them as results in the paper.
+5. (Optional) Phase 8: add drift detection to show the system adapts to seasonal behaviour.
