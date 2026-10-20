@@ -25,6 +25,9 @@ ENV/
 # ML experiment artifacts
 mlruns/
 *.pt
+# Runtime databases (generated at startup, not source)
+vessel_profiles.db
+model/mlflow*.db
 # Secrets (aisstream.io API key etc.) -- never commit
 .env
 *.env

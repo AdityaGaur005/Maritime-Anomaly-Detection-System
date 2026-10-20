@@ -30,7 +30,7 @@ jobs:
           docker build \
             -t $IMAGE_NAME:${{ steps.tag.outputs.TAG }} \
             -t $IMAGE_NAME:latest \
-            -f dockerfile .
+            -f Dockerfile .
 
       # ------------------------------------------------------------------ #
       # Smoke-test the image before pushing
