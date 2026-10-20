@@ -546,3 +546,55 @@ so anomalous/ambiguous points never contaminate the baseline — this is intenti
 3. Let 3–5 ships accumulate 50+ samples so they switch from fallback to personal baselines.
 4. Collect anomaly scores over time and include them as results in the paper.
 5. (Optional) Phase 8: add drift detection to show the system adapts to seasonal behaviour.
+
+---
+
+# Session Notes — 2026-10-20 (Repo Reorganisation)
+
+**Date:** 2026-10-20
+**Branch:** `main`
+**Commit:** `5f9b22b`
+
+## What was done
+
+### Folder structure cleaned up
+
+The root had several loose scripts and stale test files scattered across `mlops/` and `model/`.
+
+**New `scripts/` folder** — one-off and diagnostic tools that don't belong in the serving layer:
+
+| Old location | New location | What it is |
+|---|---|---|
+| `audit_duplicates.py` | `scripts/` | One-off data audit |
+| `reorganize_maritime.sh` | `scripts/` | Old shell reorganisation script |
+| `save_static_fallback_debug.py` | `scripts/` | Debug helper for static fallback JSON |
+| `mlops/test_feature_factory.py` | `scripts/` | Diagnostic analysis of XGBoost features (needs parquet data, not a pytest test) |
+| `model/test.py` | `scripts/analyze_normalization.py` | One-off check of normalization arrays |
+
+**Deleted:** `mlops/test_api.py` — old manual HTTP client using `requests` against a live server. Superseded by `tests/test_api.py` (proper pytest integration test with TestClient).
+
+**Renamed:** `dockerfile` → `Dockerfile` (standard Docker convention). `docker.yml` updated to match.
+
+**Gitignored runtime artifacts:** `vessel_profiles.db` and `model/mlflow*.db` are generated at startup and should never be committed. Both untracked and added to `.gitignore`.
+
+### Final folder layout
+
+```
+Maritime-Anomaly-Detection-System/
+├── .github/workflows/       CI + Docker workflows
+├── doc/                     Documentation, session notes, decision records
+├── HawaiiCoast_GT/          Original dataset + ground-truth incident data
+├── hybrid/                  XGBoost training scripts + trained model JSON
+├── mlops/                   Serving layer (API, consumer, feature factory, profile store)
+├── model/                   Deep model weights (.pt) + training scripts
+├── processing/              Data processing notebooks + normalization arrays
+├── scripts/                 One-off / diagnostic utilities (not run in CI)
+├── tests/                   All pytest tests (161 passing)
+├── Dockerfile               Container definition
+├── pop_fallback.json        Population-level fallback stats (loaded at runtime)
+├── static_fallback.json     Static attribute fallback (loaded at runtime)
+├── requirements.txt         Full dependency list (Python 3.11 pinned; 3.8 compatible subset installed locally)
+└── ruff.toml / pytest.ini   Linting + test config
+```
+
+### Tests: 161 passing (unchanged)
