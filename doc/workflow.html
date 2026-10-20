@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maritime Anomaly Detection — Project Workflow</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      line-height: 1.6;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 48px 0 40px;
+      border-bottom: 1px solid #2d3748;
+      margin-bottom: 56px;
+    }
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #f0f4ff;
+      letter-spacing: -0.5px;
+    }
+    .hero p {
+      margin-top: 10px;
+      color: #94a3b8;
+      font-size: 1rem;
+    }
+    .badge {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .badge-blue  { background: #1e3a5f; color: #93c5fd; }
+    .badge-green { background: #14352a; color: #6ee7b7; }
+
+    /* ── Section headers ─────────────────────────────────────────── */
+    .section { margin-bottom: 64px; }
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #f0f4ff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-title .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #334155;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .section-subtitle {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+      padding-left: 38px;
+    }
+
+    /* ── Phase banner ────────────────────────────────────────────── */
+    .phase-banner {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+    .phase-card {
+      flex: 1;
+      border-radius: 12px;
+      padding: 22px 24px;
+      border: 1px solid;
+    }
+    .phase-card.offline { border-color: #2563eb44; background: #1e3a5f22; }
+    .phase-card.online  { border-color: #16a34a44; background: #14352a22; }
+    .phase-card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+    .phase-card.offline h3 { color: #93c5fd; }
+    .phase-card.online  h3 { color: #6ee7b7; }
+    .phase-card p { font-size: 0.85rem; color: #94a3b8; }
+
+    /* ── Flowchart primitives ────────────────────────────────────── */
+    .flow { display: flex; flex-direction: column; align-items: center; gap: 0; }
+
+    .node {
+      border-radius: 10px;
+      padding: 14px 22px;
+      font-size: 0.88rem;
+      text-align: center;
+      border: 1px solid;
+      width: 100%;
+      max-width: 680px;
+      position: relative;
+    }
+    .node .node-title {
+      font-weight: 700;
+      font-size: 0.92rem;
+      margin-bottom: 4px;
+    }
+    .node .node-body {
+      font-size: 0.82rem;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .node code {
+      background: #1e2533;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.8em;
+      color: #e2e8f0;
+    }
+
+    /* node colour variants */
+    .node-data    { background: #1a2035; border-color: #3b4a6b; }
+    .node-process { background: #1a2a1a; border-color: #2d5a3d; }
+    .node-model   { background: #1f1a35; border-color: #4a3b6b; }
+    .node-decision{ background: #2a2010; border-color: #6b5a2d; }
+    .node-output  { background: #2a1a1a; border-color: #6b3b3b; }
+    .node-alert   { background: #3a1a0a; border-color: #c04a00; }
+    .node-api     { background: #0f2035; border-color: #1d4ed8; }
+    .node-ok      { background: #0a2a1a; border-color: #059669; }
+
+    /* node colour text */
+    .node-data    .node-title { color: #93c5fd; }
+    .node-process .node-title { color: #6ee7b7; }
+    .node-model   .node-title { color: #c4b5fd; }
+    .node-decision .node-title{ color: #fcd34d; }
+    .node-output  .node-title { color: #f87171; }
+    .node-alert   .node-title { color: #fb923c; }
+    .node-api     .node-title { color: #60a5fa; }
+    .node-ok      .node-title { color: #34d399; }
+
+    /* arrows */
+    .arrow {
+      width: 2px;
+      height: 28px;
+      background: #334155;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .arrow::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid #334155;
+    }
+    .arrow-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      width: 100%;
+      max-width: 680px;
+    }
+    .arrow-label .lbl {
+      font-size: 0.75rem;
+      color: #64748b;
+      padding: 2px 10px;
+      background: #1a2030;
+      border-radius: 4px;
+      margin: -4px 0;
+      z-index: 1;
+    }
+
+    /* fork / join */
+    .fork-row {
+      display: flex;
+      gap: 20px;
+      width: 100%;
+      max-width: 860px;
+      justify-content: center;
+    }
+    .fork-col { display: flex; flex-direction: column; align-items: center; gap: 0; flex: 1; }
+
+    .h-line {
+      height: 2px;
+      background: #334155;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    .fork-connector {
+      width: 100%;
+      max-width: 860px;
+      height: 28px;
+      position: relative;
+      margin-bottom: 0;
+    }
+    .fork-connector .vert { position: absolute; top: 0; width: 2px; height: 100%; background: #334155; }
+    .fork-connector .horiz { position: absolute; top: 0; height: 2px; background: #334155; }
+    .fork-connector .dot-l, .fork-connector .dot-r {
+      position: absolute; top: 0; width: 2px; height: 100%; background: #334155;
+    }
+
+    /* ── Split row (for training fork) ──────────────────────────── */
+    .split-label {
+      font-size: 0.72rem;
+      color: #64748b;
+      text-align: center;
+      margin: 4px 0 6px;
+    }
+
+    /* ── Horizontal pipeline ─────────────────────────────────────── */
+    .hpipe {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    .hpipe-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 130px;
+      max-width: 160px;
+    }
+    .hpipe-box {
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      text-align: center;
+      border: 1px solid;
+      width: 100%;
+    }
+    .hpipe-box .htitle { font-weight: 700; font-size: 0.85rem; margin-bottom: 4px; }
+    .hpipe-box .hbody  { font-size: 0.75rem; color: #94a3b8; }
+    .hpipe-arrow {
+      display: flex;
+      align-items: center;
+      padding-top: 22px;
+      color: #475569;
+      font-size: 1.2rem;
+      padding-left: 4px;
+      padding-right: 4px;
+      flex-shrink: 0;
+    }
+    .hpipe-box.data    { background: #1a2035; border-color: #3b4a6b; }
+    .hpipe-box.process { background: #1a2a1a; border-color: #2d5a3d; }
+    .hpipe-box.model   { background: #1f1a35; border-color: #4a3b6b; }
+    .hpipe-box.xgb     { background: #2a1a2a; border-color: #7c3aed88; }
+    .hpipe-box.artifact{ background: #2a2010; border-color: #92400e88; }
+    .hpipe-box .htitle.data    { color: #93c5fd; }
+    .hpipe-box .htitle.process { color: #6ee7b7; }
+    .hpipe-box .htitle.model   { color: #c4b5fd; }
+    .hpipe-box .htitle.xgb     { color: #e879f9; }
+    .hpipe-box .htitle.artifact{ color: #fbbf24; }
+
+    /* ── Feature 55-grid ─────────────────────────────────────────── */
+    .feat-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      max-width: 680px;
+      width: 100%;
+    }
+    .feat-cell {
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 0.75rem;
+      border: 1px solid;
+      text-align: center;
+    }
+    .feat-cell .fc-title { font-weight: 700; font-size: 0.78rem; margin-bottom: 2px; }
+    .feat-cell .fc-count { font-size: 0.7rem; color: #64748b; }
+    .feat-cell.k  { background: #1a2a1a; border-color: #2d5a3d; }
+    .feat-cell.k  .fc-title { color: #6ee7b7; }
+    .feat-cell.p  { background: #1a2035; border-color: #3b4a6b; }
+    .feat-cell.p  .fc-title { color: #93c5fd; }
+    .feat-cell.tr { background: #1f1a35; border-color: #4a3b6b; }
+    .feat-cell.tr .fc-title { color: #c4b5fd; }
+    .feat-cell.ls { background: #2a1a2a; border-color: #7c3aed88; }
+    .feat-cell.ls .fc-title { color: #e879f9; }
+    .feat-cell.dt { background: #2a2010; border-color: #92400e88; }
+    .feat-cell.dt .fc-title { color: #fbbf24; }
+
+    /* ── Legend ──────────────────────────────────────────────────── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .legend-dot {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      border: 1px solid;
+      flex-shrink: 0;
+    }
+
+    /* ── Three-model diagram ─────────────────────────────────────── */
+    .three-model {
+      display: grid;
+      grid-template-columns: 1fr 40px 1fr 40px 1fr;
+      grid-template-rows: auto auto auto auto;
+      gap: 0;
+      align-items: center;
+      max-width: 780px;
+      width: 100%;
+    }
+    .tm-input {
+      grid-column: 1 / -1;
+      margin-bottom: 8px;
+    }
+    .tm-arrow-down {
+      display: flex; justify-content: center; align-items: center;
+      font-size: 1.4rem; color: #475569;
+    }
+    .tm-models {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 20px;
+      margin-bottom: 0;
+    }
+    .tm-model-box {
+      flex: 1;
+      border-radius: 10px;
+      padding: 16px;
+      border: 1px solid;
+      font-size: 0.82rem;
+    }
+    .tm-model-box .tm-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 8px; }
+    .tm-model-box.trans { background: #1f1a35; border-color: #4a3b6b; }
+    .tm-model-box.trans .tm-title { color: #c4b5fd; }
+    .tm-model-box.lstm  { background: #2a1a2a; border-color: #7c3aed88; }
+    .tm-model-box.lstm  .tm-title { color: #e879f9; }
+    .tm-model-box p { color: #94a3b8; line-height: 1.6; }
+    .tm-errors {
+      display: flex;
+      gap: 20px;
+      width: 100%;
+    }
+    .tm-err-box {
+      flex: 1;
+      background: #1a1f2e;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      color: #64748b;
+      text-align: center;
+    }
+    .tm-err-box span { font-weight: 600; }
+
+    /* ── Architecture diagram ────────────────────────────────────── */
+    .arch {
+      display: grid;
+      grid-template-columns: 1fr 60px 1fr;
+      gap: 0;
+      align-items: center;
+      max-width: 780px;
+      width: 100%;
+    }
+    .arch-box {
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid;
+      font-size: 0.85rem;
+    }
+    .arch-box .arch-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 8px; }
+    .arch-box ul { padding-left: 18px; color: #94a3b8; font-size: 0.82rem; line-height: 1.8; }
+    .arch-box.api { background: #0f2035; border-color: #1d4ed888; }
+    .arch-box.api .arch-title { color: #60a5fa; }
+    .arch-box.cons { background: #1a2a1a; border-color: #2d5a3d88; }
+    .arch-box.cons .arch-title { color: #6ee7b7; }
+    .arch-mid {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: #64748b;
+      padding: 0 4px;
+    }
+    .arch-mid .mid-arrow { font-size: 1.2rem; color: #3b82f6; }
+    .arch-mid .mid-label { text-align: center; }
+
+    /* ── Baseline timeline ───────────────────────────────────────── */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 680px;
+      width: 100%;
+    }
+    .tl-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .tl-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 40px;
+      flex-shrink: 0;
+    }
+    .tl-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 2px solid;
+      background: #0f1117;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .tl-line {
+      width: 2px;
+      flex: 1;
+      background: #334155;
+      min-height: 32px;
+    }
+    .tl-body {
+      flex: 1;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-bottom: 12px;
+      border: 1px solid;
+    }
+    .tl-body .tl-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+    .tl-body .tl-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.6; }
+    .tl-item.cold .tl-dot  { border-color: #ef4444; }
+    .tl-item.cold .tl-body { background: #2a1a1a; border-color: #6b3b3b; }
+    .tl-item.cold .tl-title{ color: #f87171; }
+    .tl-item.warm .tl-dot  { border-color: #f59e0b; }
+    .tl-item.warm .tl-body { background: #2a2010; border-color: #6b5a2d; }
+    .tl-item.warm .tl-title{ color: #fcd34d; }
+    .tl-item.hot  .tl-dot  { border-color: #10b981; }
+    .tl-item.hot  .tl-body { background: #0a2a1a; border-color: #2d5a3d; }
+    .tl-item.hot  .tl-title{ color: #34d399; }
+
+    /* ── File reference table ────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      background: #1a2035;
+      color: #93c5fd;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #2d3748;
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #1e2a3a;
+      vertical-align: top;
+    }
+    td:first-child code {
+      background: #1e2533;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.8em;
+      color: #e2e8f0;
+      white-space: nowrap;
+    }
+    td:last-child { color: #94a3b8; }
+    tr:hover td { background: #131929; }
+
+    /* ── Decision badge row ──────────────────────────────────────── */
+    .decision-row {
+      display: flex;
+      gap: 10px;
+      max-width: 680px;
+      width: 100%;
+      margin: 4px 0;
+    }
+    .dec-yes {
+      flex: 1;
+      background: #0a2a1a;
+      border: 1px solid #059669;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+    }
+    .dec-yes .dt { font-weight: 700; color: #34d399; margin-bottom: 4px; font-size: 0.85rem; }
+    .dec-no {
+      flex: 1;
+      background: #2a1a1a;
+      border: 1px solid #dc2626;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+    }
+    .dec-no .dt { font-weight: 700; color: #f87171; margin-bottom: 4px; font-size: 0.85rem; }
+    .dec-yes p, .dec-no p { color: #94a3b8; font-size: 0.8rem; }
+
+    /* ── Scroll hint ─────────────────────────────────────────────── */
+    .scroll-hint {
+      font-size: 0.75rem;
+      color: #475569;
+      text-align: right;
+      margin-bottom: 6px;
+    }
+
+    /* ── Divider ─────────────────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid #1e2a3a; margin: 56px 0; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ─── HERO ──────────────────────────────────────────────────── -->
+  <div class="hero">
+    <h1>Maritime Anomaly Detection System</h1>
+    <p>Visual walkthrough of how the project works — from raw AIS data to live anomaly alerts</p>
+    <span class="badge badge-blue">Phase 1 · Training</span>
+    &nbsp;
+    <span class="badge badge-green">Phase 2 · Live Serving</span>
+  </div>
+
+  <!-- ─── BIG PICTURE ──────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="num">0</span>Big Picture — Two Phases</div>
+    <div class="section-subtitle">The project has an offline training phase and an online serving phase. Training runs once; serving runs continuously.</div>
+
+    <div class="phase-banner">
+      <div class="phase-card offline">
+        <h3>Phase 1 — Offline Training</h3>
+        <p>Runs once on historical AIS data (Hawaii 2017–2020). Produces model weight files saved to disk. Nothing in this phase is time-sensitive.</p>
+      </div>
+      <div class="phase-card online">
+        <h3>Phase 2 — Live Serving</h3>
+        <p>FastAPI server loads the trained models and scores incoming AIS broadcasts in real time. A WebSocket consumer feeds live data from aisstream.io.</p>
+      </div>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ─── TRAINING PIPELINE ────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="num">1</span>Phase 1 — Training Pipeline</div>
+    <div class="section-subtitle">Each step reads the output of the previous step. Run them in order once to produce the model artifacts.</div>
+
+    <div class="scroll-hint">→ scroll right if needed</div>
+    <div class="hpipe">
+
+      <div class="hpipe-node">
+        <div class="hpipe-box data">
+          <div class="htitle data">Raw AIS Data</div>
+          <div class="hbody">Parquet files<br/>2017–2020<br/>Hawaii vessels<br/>MMSI, lat, lon<br/>speed, course</div>
+        </div>
+      </div>
+      <div class="hpipe-arrow">→</div>
+
+      <div class="hpipe-node">
+        <div class="hpipe-box process">
+          <div class="htitle process">Sliding Windows</div>
+          <div class="hbody"><code>create_sequences.py</code><br/><br/>Group by vessel.<br/>30-point windows,<br/>stride 15.<br/>Skip incident vessels.</div>
+        </div>
+      </div>
+      <div class="hpipe-arrow">→</div>
+
+      <div class="hpipe-node">
+        <div class="hpipe-box process">
+          <div class="htitle process">Normalise</div>
+          <div class="hbody"><code>normalize(3).py</code><br/><br/>Compute mean &amp; std<br/>per channel.<br/>Save norm_mean.npy<br/>norm_std.npy</div>
+        </div>
+      </div>
+      <div class="hpipe-arrow">→</div>
+
+      <div class="hpipe-node">
+        <div class="hpipe-box model">
+          <div class="htitle model">Train Transformer VAE</div>
+          <div class="hbody"><code>train_translarge_ae.py</code><br/><br/>Encoder: Transformer<br/>→ mu, logvar<br/>Decoder: latent →<br/>Transformer → recon<br/>Loss: MSE + KL</div>
+        </div>
+      </div>
+      <div class="hpipe-arrow">→</div>
+
+      <div class="hpipe-node">
+        <div class="hpipe-box model">
+          <div class="htitle model">Train LSTM AE</div>
+          <div class="hbody"><code>train_lstm_ae.py</code><br/><br/>Encoder LSTM →<br/>latent vector.<br/>Decoder LSTM →<br/>reconstruction.<br/>Loss: MSE</div>
+        </div>
+      </div>
+      <div class="hpipe-arrow">→</div>
+
+      <div class="hpipe-node">
+        <div class="hpipe-box process">
+          <div class="htitle process">Extract Errors</div>
+          <div class="hbody"><code>add_deep_model_scores.py</code><br/><br/>Run both models<br/>on all windows.<br/>Record per-channel<br/>reconstruction<br/>error (MSE).</div>
+        </div>
+      </div>
+      <div class="hpipe-arrow">→</div>
+
+      <div class="hpipe-node">
+        <div class="hpipe-box xgb">
+          <div class="htitle xgb">Train XGBoost</div>
+          <div class="hbody"><code>train_xgboost_hybrid.py</code><br/><br/>55 features.<br/>MMSI-grouped<br/>70/15/15 split.<br/>Label: normal<br/>vs incident.</div>
+        </div>
+      </div>
+      <div class="hpipe-arrow">→</div>
+
+      <div class="hpipe-node">
+        <div class="hpipe-box artifact">
+          <div class="htitle artifact">Artifacts</div>
+          <div class="hbody">best_model_large.pt<br/>lstm_ae_best.pt<br/>xgboost_hybrid_final.json<br/>norm_mean.npy<br/>norm_std.npy</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ─── SERVING ARCHITECTURE ─────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="num">2</span>Phase 2 — Serving Architecture</div>
+    <div class="section-subtitle">Two separate processes run together. The consumer feeds the API.</div>
+
+    <div class="arch" style="margin: 0 auto;">
+      <div class="arch-box api">
+        <div class="arch-title">Process 1 — FastAPI Server</div>
+        <ul>
+          <li><code>mlops/main.py</code></li>
+          <li>Loads all 3 models at startup</li>
+          <li>Keeps per-vessel rolling buffer in memory</li>
+          <li>Reads/writes vessel baselines to SQLite</li>
+          <li>Exposes <code>POST /predict</code></li>
+          <li>Runs on port 8000</li>
+        </ul>
+      </div>
+
+      <div class="arch-mid">
+        <div class="mid-arrow">⟵</div>
+        <div class="mid-label">HTTP POST<br/>/predict<br/>(one AIS<br/>point)</div>
+        <div class="mid-arrow">⟶</div>
+        <div class="mid-label">JSON<br/>response<br/>score +<br/>is_anomaly</div>
+      </div>
+
+      <div class="arch-box cons">
+        <div class="arch-title">Process 2 — AIS Consumer</div>
+        <ul>
+          <li><code>mlops/ais_consumer.py</code></li>
+          <li>WebSocket → aisstream.io</li>
+          <li>Validates &amp; downsamples to 60 s/vessel</li>
+          <li>asyncio Queue → 3 worker tasks</li>
+          <li>POSTs each position to /predict</li>
+          <li>Writes static vessel data to SQLite</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ─── API STARTUP ───────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="num">3</span>API Startup Sequence</div>
+    <div class="section-subtitle">What happens once when <code>uvicorn</code> starts — before any request arrives.</div>
+
+    <div class="flow" style="align-items: center;">
+
+      <div class="node node-api" style="max-width:480px;">
+        <div class="node-title">uvicorn starts → lifespan() hook fires</div>
+        <div class="node-body"><code>mlops/main.py</code></div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <div class="node node-process" style="max-width:480px;">
+        <div class="node-title">vessel_profile_store.init_db()</div>
+        <div class="node-body">
+          Creates <code>vessel_profiles.db</code> if missing.<br/>
+          CREATE TABLE IF NOT EXISTS <strong>vessel_profile</strong> (one row per MMSI)<br/>
+          CREATE TABLE IF NOT EXISTS <strong>vessel_sample_points</strong> (raw points for stats)
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <div class="node node-model" style="max-width:480px;">
+        <div class="node-title">feature_factory._get_resources()</div>
+        <div class="node-body">
+          Load <code>best_model_large.pt</code> → TransformerVAE → <code>.eval()</code><br/>
+          Load <code>lstm_ae_best.pt</code> → LSTMAutoencoder → <code>.eval()</code><br/>
+          Load <code>xgboost_hybrid_final.json</code> → xgb.Booster<br/>
+          Load <code>norm_mean.npy</code>, <code>norm_std.npy</code>
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <div class="node node-ok" style="max-width:480px;">
+        <div class="node-title">Server ready — listening on :8000</div>
+        <div class="node-body">All models in memory. Every subsequent request uses the same loaded weights.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ─── /predict FLOW ─────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="num">4</span>Core Inference — POST /predict (per request)</div>
+    <div class="section-subtitle">Every single AIS broadcast goes through this entire path. The first 30 points per vessel return "warming up"; point 31 onwards returns a live anomaly score.</div>
+
+    <div class="flow" style="align-items: center;">
+
+      <!-- Input -->
+      <div class="node node-data">
+        <div class="node-title">Incoming HTTP POST /predict</div>
+        <div class="node-body">
+          <code>{ MMSI, lat, lon, speed_over_ground_knots, course_over_ground_deg, datetime_hst }</code>
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <!-- Validation -->
+      <div class="node node-decision">
+        <div class="node-title">Pydantic Validation (AISPoint)</div>
+        <div class="node-body">
+          lat ∈ [−90, 90] · lon ∈ [−180, 180] · speed ∈ [0, 102.4] · course ∈ [0, 360]<br/>
+          No NaN / Infinity · MMSI non-empty and ≤ 64 chars
+        </div>
+      </div>
+
+      <div class="arrow-label" style="max-width: 680px;">
+        <div class="arrow"></div>
+        <div class="lbl">invalid → 422 Unprocessable (safe JSON error)</div>
+        <div class="arrow"></div>
+      </div>
+
+      <!-- Deltas -->
+      <div class="node node-process">
+        <div class="node-title">_compute_deltas() — derive kinematic fields</div>
+        <div class="node-body">
+          Look up this vessel's last raw point.<br/>
+          <strong>First point ever?</strong> → store it, return <em>ready: false</em><br/>
+          <strong>Gap &lt; 1 s?</strong> (duplicate / out-of-order) → skip, return <em>ready: false</em><br/>
+          Otherwise compute: <code>computed_speed</code> (geopy distance ÷ time) · <code>acceleration</code> (Δspeed ÷ Δtime) · <code>heading_change</code> (angular diff)<br/>
+          Clamp each value to training-time bounds (no dropping — keeps buffer continuity).
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <!-- Buffer -->
+      <div class="node node-process">
+        <div class="node-title">_add_enriched_point() — rolling buffer</div>
+        <div class="node-body">
+          Append the 7-field enriched point to <code>_vessel_buffers[MMSI]</code><br/>
+          Trim to max 60 entries. Buffer is in-memory, lives for the process lifetime.
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <!-- Buffer check -->
+      <div class="node node-decision">
+        <div class="node-title">Buffer length ≥ 30?</div>
+        <div class="node-body">The first 30 enriched points (≈ 40 min of AIS at 60 s intervals) warm up the window.</div>
+      </div>
+
+      <div class="decision-row">
+        <div class="dec-no">
+          <div class="dt">NO — Still Warming Up</div>
+          <p>Return <code>{ ready: false, anomaly_score: null, point_count: N }</code></p>
+        </div>
+        <div class="dec-yes">
+          <div class="dt">YES — Score This Window</div>
+          <p>Take the last 30 enriched points and continue to feature extraction below.</p>
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <!-- Feature extraction -->
+      <div class="node node-model">
+        <div class="node-title">_extract_features() → 55-element feature vector</div>
+        <div class="node-body" style="text-align: left;">
+          Compute all 55 features from the 30-point window + vessel profile.
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <!-- 55 features grid -->
+      <div class="feat-grid">
+        <div class="feat-cell k" style="grid-column: span 2;">
+          <div class="fc-title">Kinematic Stats</div>
+          <div class="fc-count">28 features</div>
+          <div class="fc-count" style="margin-top:4px;">mean/std/min/max of lat, lon, speed, course, computed_speed, accel, heading_change</div>
+        </div>
+        <div class="feat-cell dt">
+          <div class="fc-title">Δ Time</div>
+          <div class="fc-count">3 features</div>
+          <div class="fc-count" style="margin-top:4px;">mean, max, std</div>
+        </div>
+        <div class="feat-cell p">
+          <div class="fc-title">Vessel Profile</div>
+          <div class="fc-count">6 features</div>
+          <div class="fc-count" style="margin-top:4px;">type, length, beam, fallback flag, speed z-score, heading z-score</div>
+        </div>
+        <div class="feat-cell k">
+          <div class="fc-title">Position</div>
+          <div class="fc-count">2 features</div>
+          <div class="fc-count" style="margin-top:4px;">mean &amp; max dist from centroid</div>
+        </div>
+        <div class="feat-cell tr" style="grid-column: span 2;">
+          <div class="fc-title">Transformer Recon Errors</div>
+          <div class="fc-count">8 features</div>
+          <div class="fc-count" style="margin-top:4px;">MSE per channel (×7) + aggregate MSE</div>
+        </div>
+        <div class="feat-cell ls" style="grid-column: span 2;">
+          <div class="fc-title">LSTM Recon Errors</div>
+          <div class="fc-count">8 features</div>
+          <div class="fc-count" style="margin-top:4px;">MSE per channel (×7) + aggregate MSE</div>
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <!-- XGBoost -->
+      <div class="node node-model">
+        <div class="node-title">XGBoost.predict() → anomaly score</div>
+        <div class="node-body">
+          Input: 55-element feature vector<br/>
+          Output: <strong>float in [0.0 – 1.0]</strong> — probability of anomaly<br/>
+          Threshold = <strong>0.85</strong> (P95 of clean vessel score distribution from training)
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <!-- Decision -->
+      <div class="decision-row">
+        <div class="dec-yes">
+          <div class="dt">score &lt; 0.85 → Normal</div>
+          <p><code>is_anomaly: false</code><br/>Behaviour matches what model learned as normal.</p>
+        </div>
+        <div class="dec-no">
+          <div class="dt">score ≥ 0.85 → ANOMALY</div>
+          <p><code>is_anomaly: true</code><br/>Log <code>ANOMALY_DETECTED mmsi=… score=…</code></p>
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <!-- Baseline update -->
+      <div class="node node-process">
+        <div class="node-title">maybe_update_profile() — vessel baseline learning</div>
+        <div class="node-body">
+          <strong>score ≥ 0.77?</strong> → skip (don't contaminate baseline with anomalous/ambiguous points)<br/>
+          <strong>score &lt; 0.77</strong> → INSERT point into <code>vessel_sample_points</code><br/>
+          Evict oldest if over 2000 samples · Recompute mean/std of speed, heading; median lat/lon
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <!-- Response -->
+      <div class="node node-ok">
+        <div class="node-title">HTTP Response — PredictionResponse</div>
+        <div class="node-body">
+          <code>{ mmsi, anomaly_score, confidence: "high"/"low", is_anomaly, baseline_established, point_count }</code>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ─── AIS CONSUMER FLOW ─────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="num">5</span>AIS Consumer Flow</div>
+    <div class="section-subtitle">Runs as a separate process. Connects to live AIS stream and feeds the prediction API continuously.</div>
+
+    <div class="flow" style="align-items: center;">
+
+      <div class="node node-process">
+        <div class="node-title">main() → asyncio.run(_async_main())</div>
+        <div class="node-body">Set up logging · Register SIGINT/SIGTERM handlers · Load watchlist · init_db() · Start 3 worker tasks</div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <div class="node node-api">
+        <div class="node-title">WebSocket CONNECT to aisstream.io</div>
+        <div class="node-body">
+          <code>wss://stream.aisstream.io/v0/stream</code> with <code>compression="deflate"</code> (required from Sept 2026)<br/>
+          Send subscription: <code>{ APIKey, BoundingBoxes: [Hawaii], FilterMessageTypes, FiltersShipMMSI }</code>
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <div class="node node-decision">
+        <div class="node-title">For each message received…</div>
+        <div class="node-body">Route by MessageType</div>
+      </div>
+
+      <div style="display:flex; gap:16px; max-width:820px; width:100%; margin:12px 0;">
+
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div class="node node-process" style="max-width:none; width:100%;">
+            <div class="node-title" style="font-size:0.82rem;">SubscriptionConfirmation</div>
+            <div class="node-body">Mark <code>confirmed = True</code>. If this never arrives after 3 reconnects → exit (bad API key)</div>
+          </div>
+        </div>
+
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div class="node node-data" style="max-width:none; width:100%;">
+            <div class="node-title" style="font-size:0.82rem;">Static Data (ShipStaticData / StaticDataReport)</div>
+            <div class="node-body">Parse vessel type, length, beam → <code>update_static_attributes()</code> → write to SQLite immediately (synchronous, ~1 ms)</div>
+          </div>
+        </div>
+
+        <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div class="node node-model" style="max-width:none; width:100%;">
+            <div class="node-title" style="font-size:0.82rem;">Position Report (Class A &amp; B)</div>
+            <div class="node-body">
+              1. Validate with Pydantic<br/>
+              2. Reject sentinel values (SOG=102.3, COG=360)<br/>
+              3. Throttle: gap &lt; 60 s? → drop<br/>
+              4. <code>queue.put_nowait(payload)</code><br/>
+              &nbsp;&nbsp;&nbsp;Queue full? → drop + log
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="arrow"></div>
+
+      <div class="node node-ok">
+        <div class="node-title">Worker Tasks (×3 in parallel) drain the queue</div>
+        <div class="node-body">
+          <code>await queue.get()</code> → <code>httpx.AsyncClient.post("/predict", json=payload)</code><br/>
+          200 + <code>is_anomaly:true</code> → log <code>ANOMALY_DETECTED</code><br/>
+          422 → log validation error · 5xx / timeout → log server error
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <div class="node node-decision">
+        <div class="node-title">WebSocket disconnected?</div>
+        <div class="node-body">Exponential backoff reconnect: 1s → 2s → 4s → … → 60s max<br/>
+        No SubscriptionConfirmation ×3 → exit · HTTP 401/403 → exit immediately</div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ─── VESSEL BASELINE TIMELINE ─────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="num">6</span>Vessel Baseline Learning Over Time</div>
+    <div class="section-subtitle">Confidence improves the longer a vessel is tracked. The system starts with fleet-wide averages and gradually learns each vessel's individual behaviour.</div>
+
+    <div class="timeline" style="margin: 0 auto;">
+
+      <div class="tl-item cold">
+        <div class="tl-left">
+          <div class="tl-dot"></div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-title">First Contact — Cold Start</div>
+          <div class="tl-desc">
+            Vessel seen for the first time. No data in SQLite yet.<br/>
+            Profile returns <strong>population fallback</strong> (stats from all 2017-2020 Hawaiian vessels).<br/>
+            <code>confidence: "low"</code> · <code>baseline_is_fallback: true</code><br/>
+            Z-score features compare this vessel against the whole fleet.
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item warm">
+        <div class="tl-left">
+          <div class="tl-dot"></div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-title">1–49 Normal Points Accumulated</div>
+          <div class="tl-desc">
+            Each normal AIS point (score &lt; 0.77) is stored in <code>vessel_sample_points</code>.<br/>
+            Still below the 50-sample threshold — population fallback still used.<br/>
+            Scores are less personalised; anything deviating from fleet average looks anomalous.
+          </div>
+        </div>
+      </div>
+
+      <div class="tl-item hot">
+        <div class="tl-left">
+          <div class="tl-dot"></div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-title">50+ Normal Points — Vessel-Specific Baseline Unlocked</div>
+          <div class="tl-desc">
+            Profile now returns this vessel's own mean/std of speed and heading, and its median position (centroid).<br/>
+            <code>confidence: "high"</code> · <code>baseline_is_fallback: false</code><br/>
+            A fast ferry that always runs at 22 kn looks <em>normal</em>. The same speed for a slow tugboat looks <em>anomalous</em>.<br/>
+            Caps at 2000 stored samples — oldest evicted on overflow.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ─── THREE MODELS ──────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="num">7</span>How the Three Models Work Together</div>
+    <div class="section-subtitle">The two autoencoders act as feature extractors. XGBoost is the final decision maker.</div>
+
+    <div class="flow" style="align-items: center;">
+
+      <div class="node node-data" style="max-width:580px;">
+        <div class="node-title">30-point AIS window — shape (30 × 7)</div>
+        <div class="node-body">lat · lon · speed · course · computed_speed · acceleration · heading_change</div>
+      </div>
+
+      <div style="display:flex; gap:20px; max-width:780px; width:100%; margin: 8px 0;">
+
+        <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+          <div class="node node-model" style="max-width:none;">
+            <div class="node-title">TransformerVAE</div>
+            <div class="node-body" style="text-align:left;">
+              Trained only on <strong>normal</strong> voyages.<br/><br/>
+              Self-attention sees the whole 30-step window at once — good at long-range patterns.<br/><br/>
+              <strong>Encode</strong> → mu (latent mean)<br/>
+              <strong>Decode(mu)</strong> → reconstruction<br/>
+              <em>No reparameterize() — deterministic.</em>
+            </div>
+          </div>
+          <div style="text-align:center; padding:6px; background:#1a1f2e; border:1px solid #334155; border-radius:8px; font-size:0.8rem; color:#64748b;">
+            <span style="color:#c4b5fd; font-weight:600;">8 error values</span><br/>MSE per channel + aggregate
+          </div>
+        </div>
+
+        <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+          <div class="node node-model" style="max-width:none; border-color:#7c3aed88; background:#2a1a2a;">
+            <div class="node-title" style="color:#e879f9;">LSTM Autoencoder</div>
+            <div class="node-body" style="text-align:left;">
+              Trained only on <strong>normal</strong> voyages.<br/><br/>
+              Recurrent memory captures local sequential steps — good at short-range transitions.<br/><br/>
+              <strong>Encoder LSTM</strong> → latent vector<br/>
+              <strong>Decoder LSTM</strong> → reconstruction<br/>
+              <em>Standard seq2seq, no teacher forcing.</em>
+            </div>
+          </div>
+          <div style="text-align:center; padding:6px; background:#1a1f2e; border:1px solid #334155; border-radius:8px; font-size:0.8rem; color:#64748b;">
+            <span style="color:#e879f9; font-weight:600;">8 error values</span><br/>MSE per channel + aggregate
+          </div>
+        </div>
+
+      </div>
+
+      <div style="font-size:0.78rem; color:#64748b; margin:4px 0;">16 deep error features + 39 context features = 55 total</div>
+
+      <div class="arrow"></div>
+
+      <div class="node node-model" style="max-width:580px; background:#2a1a2a; border-color:#7c3aed;">
+        <div class="node-title" style="color:#e879f9;">XGBoost — Final Scorer</div>
+        <div class="node-body">
+          Trained on <strong>labelled</strong> data (normal windows vs incident windows).<br/>
+          Learns which error features matter, in which context, for which vessel type.<br/>
+          A high Transformer error alone may not be anomalous — XGBoost weighs all 55 signals together.<br/>
+          Output: single probability score in [0.0, 1.0]
+        </div>
+      </div>
+
+      <div class="arrow"></div>
+
+      <div style="display:flex; gap:16px; max-width:580px; width:100%; margin-top:4px;">
+        <div class="dec-yes" style="flex:1;">
+          <div class="dt">score &lt; 0.85</div>
+          <p>Normal vessel behaviour</p>
+        </div>
+        <div class="dec-no" style="flex:1;">
+          <div class="dt">score ≥ 0.85</div>
+          <p>ANOMALY DETECTED — alert logged</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- ─── FILE REFERENCE ────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="num">8</span>File → Role Quick Reference</div>
+    <div class="section-subtitle">What each file does and when it runs.</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>When it runs</th>
+          <th>What it does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>processing/create_sequences.py</code></td>
+          <td>Training (once)</td>
+          <td>Chops raw AIS parquet files into 30-point sliding windows, saves <code>.npy</code></td>
+        </tr>
+        <tr>
+          <td><code>processing/normalize(3).py</code></td>
+          <td>Training (once)</td>
+          <td>Computes channel mean/std, normalises all splits, saves <code>norm_mean.npy</code> and <code>norm_std.npy</code></td>
+        </tr>
+        <tr>
+          <td><code>model/model.py</code></td>
+          <td>Training + Serving</td>
+          <td>Defines the TransformerVAE architecture (imported by training script and feature_factory)</td>
+        </tr>
+        <tr>
+          <td><code>model/train_translarge_ae.py</code></td>
+          <td>Training (once)</td>
+          <td>Trains the large TransformerVAE, saves <code>best_model_large.pt</code></td>
+        </tr>
+        <tr>
+          <td><code>model/train_lstm_ae.py</code></td>
+          <td>Training + Serving</td>
+          <td>Defines LSTMAutoencoder class AND trains it, saves <code>lstm_ae_best.pt</code></td>
+        </tr>
+        <tr>
+          <td><code>hybrid/add_deep_model_scores.py</code></td>
+          <td>Training (once)</td>
+          <td>Runs both saved models on all windows, writes parquet tables with reconstruction error features</td>
+        </tr>
+        <tr>
+          <td><code>hybrid/train_xgboost_hybrid.py</code></td>
+          <td>Training (once)</td>
+          <td>Trains XGBoost on the 55-feature table with MMSI-grouped split, saves <code>xgboost_hybrid_final.json</code></td>
+        </tr>
+        <tr>
+          <td><code>mlops/main.py</code></td>
+          <td>Serving (always on)</td>
+          <td>FastAPI app — loads models at startup, exposes <code>POST /predict</code></td>
+        </tr>
+        <tr>
+          <td><code>mlops/feature_factory.py</code></td>
+          <td>Serving (per request)</td>
+          <td>Per-request pipeline: buffer management → 55-feature extraction → deep model scoring → XGBoost score</td>
+        </tr>
+        <tr>
+          <td><code>mlops/kinematics.py</code></td>
+          <td>Serving (per request)</td>
+          <td>Pure math helpers: angular difference, value clamping, ISO timestamp parsing</td>
+        </tr>
+        <tr>
+          <td><code>mlops/vessel_profile_store.py</code></td>
+          <td>Serving (per request)</td>
+          <td>SQLite read/write — get_profile(), maybe_update_profile(), update_static_attributes()</td>
+        </tr>
+        <tr>
+          <td><code>mlops/ais_consumer.py</code></td>
+          <td>Serving (always on)</td>
+          <td>WebSocket consumer — reads live aisstream.io, validates, throttles, queues, POSTs to /predict</td>
+        </tr>
+        <tr>
+          <td><code>mlops/discover_vessels.py</code></td>
+          <td>Occasional (one-shot)</td>
+          <td>Listens to stream for N minutes, ranks vessels by activity, writes a watchlist file</td>
+        </tr>
+        <tr>
+          <td><code>pop_fallback.json</code></td>
+          <td>Serving (cold-start)</td>
+          <td>Fleet-level speed/heading/position stats used when a vessel has fewer than 50 observed points</td>
+        </tr>
+        <tr>
+          <td><code>static_fallback.json</code></td>
+          <td>Serving (cold-start)</td>
+          <td>Fleet-median vessel type, length, and beam used when no static AIS broadcast has been received</td>
+        </tr>
+        <tr>
+          <td><code>vessel_profiles.db</code></td>
+          <td>Serving (persistent)</td>
+          <td>SQLite database — per-vessel baselines that accumulate and improve over time</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>
