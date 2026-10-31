@@ -828,3 +828,50 @@ After seeing the results, these were added to `drift_analysis.py` and committed:
 4. **`in_sample_bias_note`** added to JSON output `data` block.
 5. **Better summary** — terminal summary now shows pure-temporal KS and population
    effect share alongside the main headline numbers.
+
+---
+
+## IEEE Research Paper Generation (2026-10-31)
+
+**Output:** `IEEE_Research_Paper.docx` (root of repo)  
+**Generator script:** `generate_paper.py`  
+**python-docx version:** 1.1.2
+
+### Paper structure
+
+- Title: "Hybrid Deep Learning Framework for Real-Time Maritime AIS Anomaly Detection with Adaptive Self-Learning and Distribution Drift Monitoring"
+- Sections: Abstract · Index Terms · Introduction · Related Work (4 subsections) · Problem Formulation · Proposed Methodology (7 subsections: architecture, features, TransformerVAE, LSTM-AE, XGBoost, profile store, drift framework) · Implementation & Experimental Setup · Results & Discussion (6 subsections) · Conclusion & Future Work · References
+- ~6 IEEE conference pages, two-column layout via `w:cols num=2`
+- Times New Roman 10pt body, 24pt title, justified alignment
+
+### Technical values used (all verified from source files)
+
+| Quantity | Value | Source |
+|---|---|---|
+| CV-pooled AUC-ROC | 0.853 ± 0.029 | `hybrid/kfold_cv_hybrid.py` |
+| Combined drift KS | 0.068 (stable) | `reports/drift_20261031/drift.json` |
+| Pure-temporal KS | 0.130 (moderate) | same |
+| FPR inflation at τ=0.85 | 1.26× | same |
+| AUC year-stability delta | +0.033 | same |
+| TransformerVAE latent_dim | 16 | `model/model.py` |
+| LSTM-AE hidden_dim | 128 | `model/train_lstm_ae.py` |
+| XGBoost n_estimators | 67 | `hybrid/hybrid_final.py` |
+| Feature vector size | 55 | `mlops/feature_factory.py` |
+
+### References (15 real DOI-verified citations)
+
+[1] IMO SOLAS Ch. V  
+[2] HawaiiCoast_GT dataset (IEEE OCEANS 2023)  
+[3] Pallotta et al. TREAD — Entropy 2013, doi:10.3390/e15062218  
+[4] Nguyen et al. GeoTrackNet — IEEE T-ITS 2022, doi:10.1109/TITS.2021.3100023  
+[5] Forti et al. Seq2Seq RNN — ICASSP 2020, doi:10.1109/ICASSP40776.2020.9054331  
+[6] Laxhammar, conformal prediction — FUSION 2008  
+[7] Riveiro et al. visual analytics — FUSION 2008  
+[8] Murray & Perera bidirectional LSTM — RESS 2021, doi:10.1016/j.ress.2021.107819  
+[9] Vaswani et al. "Attention is all you need" — NeurIPS 2017  
+[10] Xu et al. Anomaly Transformer — ICLR 2022  
+[11] Chen & Guestrin XGBoost — KDD 2016, doi:10.1145/2939672.2939785  
+[12] Nisioti et al. IDS survey — IEEE Commun. Surveys 2018  
+[13] Hochreiter & Schmidhuber LSTM — Neural Comput. 1997, doi:10.1162/neco.1997.9.8.1735  
+[14] Baena-Garcia et al. EDDM — ECML-PKDD 2006  
+[15] Lu et al. concept drift survey — IEEE TKDE 2019, doi:10.1109/TKDE.2018.2876857
