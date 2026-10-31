@@ -28,6 +28,8 @@ mlruns/
 # Runtime databases (generated at startup, not source)
 vessel_profiles.db
 model/mlflow*.db
+# Drift analysis outputs — generated files, commit selectively
+reports/drift_*/
 # Secrets (aisstream.io API key etc.) -- never commit
 .env
 *.env
