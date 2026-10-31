@@ -29,7 +29,7 @@ therefore scored by the same model, keeping the comparison fair.
 Four caveats to state explicitly in the thesis methodology section:
 
 1. COMBINED DRIFT — The primary comparison (reference vs clean-2020) mixes two
-   things: (a) year change 2019→2020 and (b) population change from incident-prone
+   things: (a) year change 2019->2020 and (b) population change from incident-prone
    vessels to clean vessels.  Both are operationally real, but a reviewer may ask
    to separate them.  The script therefore also runs a "pure temporal drift"
    comparison: 2020 normal windows from the *same* incident-vessel population vs
@@ -152,7 +152,7 @@ def _require_col(df: pd.DataFrame, col: str, parquet: str) -> None:
 
 def psi(expected: np.ndarray, actual: np.ndarray, buckets: int = 10) -> float:
     """Population Stability Index.
-    <0.10 → stable, 0.10-0.25 → moderate change, ≥0.25 → significant change.
+    <0.10 -> stable, 0.10-0.25 -> moderate change, >=0.25 -> significant change.
     """
     if len(expected) < 10 or len(actual) < 10:
         return float("nan")
@@ -208,19 +208,19 @@ def _score_with_xgb(df: pd.DataFrame, feature_cols: list) -> np.ndarray:
 # ── data loading ──────────────────────────────────────────────────────────────
 
 def load_data(incident_path: Path, clean_path: Path):
-    print(f"Loading incident-vessel parquet: {incident_path} …")
+    print(f"Loading incident-vessel parquet: {incident_path} ...")
     inc = pd.read_parquet(incident_path)
     for col in ("MMSI", "label", "year"):
         _require_col(inc, col, str(incident_path))
     inc["year"] = inc["year"].astype(str)
     inc["label"] = inc["label"].astype(int)
-    print(f"  {len(inc):,} windows — {inc['MMSI'].nunique():,} vessels — "
+    print(f"  {len(inc):,} windows -- {inc['MMSI'].nunique():,} vessels -- "
           f"{int(inc['label'].sum())} positives")
 
-    print(f"Loading clean-2020 parquet: {clean_path} …")
+    print(f"Loading clean-2020 parquet: {clean_path} ...")
     cur = pd.read_parquet(clean_path)
     _require_col(cur, "MMSI", str(clean_path))
-    print(f"  {len(cur):,} windows — {cur['MMSI'].nunique():,} vessels")
+    print(f"  {len(cur):,} windows -- {cur['MMSI'].nunique():,} vessels")
 
     available_in_inc = set(inc.columns) - META_COLS
     available_in_cur = set(cur.columns) - META_COLS
@@ -228,9 +228,9 @@ def load_data(incident_path: Path, clean_path: Path):
                     if f in available_in_inc and f in available_in_cur]
     missing = set(FEATURE_NAMES) - set(feature_cols)
     if missing:
-        print(f"  ⚠  {len(missing)} feature(s) absent from one parquet — "
+        print(f"  !!  {len(missing)} feature(s) absent from one parquet -- "
               f"skipped in covariate drift: "
-              f"{sorted(missing)[:5]}{'…' if len(missing) > 5 else ''}")
+              f"{sorted(missing)[:5]}{'...' if len(missing) > 5 else ''}")
 
     if len(feature_cols) != len(FEATURE_NAMES):
         raise ValueError(
@@ -240,26 +240,26 @@ def load_data(incident_path: Path, clean_path: Path):
         )
 
     if "model_score" not in inc.columns:
-        print(f"\n  incident parquet has no model_score — scoring "
-              f"{len(inc):,} windows with {XGB_MODEL_PATH.name} …")
+        print(f"\n  incident parquet has no model_score -- scoring "
+              f"{len(inc):,} windows with {XGB_MODEL_PATH.name} ...")
         inc["model_score"] = _score_with_xgb(inc, feature_cols)
         print(f"  incident scored: mean={inc['model_score'].mean():.4f}  "
               f"P90={np.percentile(inc['model_score'], 90):.4f}  "
               f"P95={np.percentile(inc['model_score'], 95):.4f}  "
               f"max={inc['model_score'].max():.4f}")
     else:
-        print(f"  incident parquet already has model_score — using existing")
+        print("  incident parquet already has model_score -- using existing")
 
     if "model_score" not in cur.columns:
-        print(f"  clean parquet has no model_score — scoring "
-              f"{len(cur):,} windows with {XGB_MODEL_PATH.name} …")
+        print(f"  clean parquet has no model_score -- scoring "
+              f"{len(cur):,} windows with {XGB_MODEL_PATH.name} ...")
         cur["model_score"] = _score_with_xgb(cur, feature_cols)
         print(f"  clean scored:    mean={cur['model_score'].mean():.4f}  "
               f"P90={np.percentile(cur['model_score'], 90):.4f}  "
               f"P95={np.percentile(cur['model_score'], 95):.4f}  "
               f"max={cur['model_score'].max():.4f}")
     else:
-        print(f"  clean parquet already has model_score — using existing")
+        print("  clean parquet already has model_score -- using existing")
 
     return inc, cur, feature_cols
 
@@ -272,6 +272,8 @@ def build_reference_current(inc: pd.DataFrame, cur: pd.DataFrame):
             "label==0 rows with year in {2017, 2018, 2019}."
         )
 
+    # Same population as reference but year 2020 — used for pure temporal drift.
+    # This isolates the year-change signal by holding the vessel population fixed.
     same_pop_2020 = inc[(inc["label"] == 0) & (inc["year"] == "2020")].copy()
 
     print(f"\nReference        : {len(ref):,} normal windows from "
@@ -414,16 +416,27 @@ def analyse_threshold_impact(ref: pd.DataFrame, cur: pd.DataFrame) -> dict:
     }
 
 
-# ── analysis 5 — discriminative degradation ───────────────────────────────────
+# ── analysis 5 — AUC year stability check ─────────────────────────────────────
 
 def analyse_auc_degradation(inc: pd.DataFrame) -> dict:
-    """Year-over-year AUC stability check on the incident-vessel population."""
+    """Year-over-year AUC stability check on the incident-vessel population.
+
+    IMPORTANT -- this is NOT a generalization test.  The final XGBoost was
+    trained on all 4 years of incident vessels, so both the 2017-19 and 2020
+    subsets are in-training-set data.  Interpret the delta as:
+
+        "Did 2020 incident patterns become harder or easier to separate from
+         2020 normal patterns, compared to 2017-2019?"
+
+    For generalization claims, use the CV-pooled AUC from kfold_cv_hybrid.py
+    (0.853 +/- 0.029) -- that is the honest held-out estimate.
+    """
     from sklearn.metrics import average_precision_score, roc_auc_score
 
     def auc_for(df: pd.DataFrame, label: str) -> dict:
         sub = df.dropna(subset=["model_score", "label"])
         if sub["label"].nunique() < 2:
-            print(f"  ⚠  '{label}' has only one class — skipping AUC")
+            print(f"  !!  '{label}' has only one class -- skipping AUC")
             return None
         auc = float(roc_auc_score(sub["label"], sub["model_score"]))
         ap = float(average_precision_score(sub["label"], sub["model_score"]))
@@ -472,7 +485,6 @@ def analyse_auc_degradation(inc: pd.DataFrame) -> dict:
 # ── output: JSON ──────────────────────────────────────────────────────────────
 
 def write_json(path: Path, results: dict) -> None:
-    # utf-8 required for any non-ASCII content (e.g. ⚠ or delta symbols)
     path.write_text(json.dumps(results, indent=2, default=str), encoding="utf-8")
     print(f"  ✓ {path}")
 
@@ -487,17 +499,17 @@ def write_markdown(path: Path, r: dict) -> None:
     pop = r["population"]
 
     lines = [
-        "# Maritime AIS Anomaly Detection — Drift Analysis Report",
+        "# Maritime AIS Anomaly Detection -- Drift Analysis Report",
         f"\n**Generated:** {r['generated_at']} UTC  ",
-        f"**Reference:** 2017–2019 normal windows from incident-vessel population — "
+        f"**Reference:** 2017-2019 normal windows from incident-vessel population -- "
         f"{r['data']['n_reference']:,} windows from {r['data']['n_reference_vessels']:,} vessels  ",
-        f"**Current (combined):** clean-2020 vessels — {r['data']['n_current']:,} windows from "
+        f"**Current (combined):** clean-2020 vessels -- {r['data']['n_current']:,} windows from "
         f"{r['data']['n_current_vessels']:,} vessels  ",
-        f"**Current (fixed pop):** 2020 normal windows from same incident-vessel population — "
+        f"**Current (fixed pop):** 2020 normal windows from same incident-vessel population -- "
         f"{r['data']['n_same_pop_2020']:,} windows  ",
         f"**Features analysed:** {r['data']['n_features']}",
         "\n> **Population note:** The reference is the steady-state behaviour of "
-        "incident-prone vessels (tows, tankers, cargo ships) — not all normal maritime "
+        "incident-prone vessels (tows, tankers, cargo ships) -- not all normal maritime "
         "traffic. Vessel types absent from this population (e.g. fishing, pleasure craft) "
         "will appear to drift even if their behaviour did not change. See methodology section.",
         "\n> **In-sample bias note:** Reference model_scores are in-sample predictions "
@@ -506,10 +518,10 @@ def write_markdown(path: Path, r: dict) -> None:
         "The pure-temporal-drift comparison scores both sides in-sample and is unbiased.",
         "\n---\n",
 
-        "## 1. Prediction Drift — Combined (Year + Population Change)\n",
+        "## 1. Prediction Drift -- Combined (Year + Population Change)\n",
         "\n*This is the operationally relevant number: how much did the model's score "
         "distribution shift on the actual 2020 traffic mix?*\n",
-        "| Metric | Reference (2017–2019) | Current (2020) | Shift |",
+        "| Metric | Reference (2017-2019) | Current (2020) | Shift |",
         "|---|---|---|---|",
         f"| Mean score | {p['reference']['mean']:.4f} | {p['current']['mean']:.4f} | "
         f"{p['current']['mean'] - p['reference']['mean']:+.4f} |",
@@ -522,18 +534,18 @@ def write_markdown(path: Path, r: dict) -> None:
         f"\n**KS statistic:** {p['ks_stat']:.4f} &nbsp;|&nbsp; "
         f"**PSI:** {p['psi']:.4f} &nbsp;|&nbsp; "
         f"**Severity:** {p['severity']}",
-        "\n> *PSI < 0.10 = stable, 0.10–0.25 = moderate, >= 0.25 = significant.*\n",
+        "\n> *PSI < 0.10 = stable, 0.10-0.25 = moderate, >= 0.25 = significant.*\n",
     ]
 
     lines += [
         "\n---\n",
-        "## 1b. Prediction Drift — Pure Temporal (Fixed Population)\n",
-        "\n*Same incident-vessel population, 2020 vs 2017–2019. "
+        "## 1b. Prediction Drift -- Pure Temporal (Fixed Population)\n",
+        "\n*Same incident-vessel population, 2020 vs 2017-2019. "
         "Isolates year change from population change. Both sides in-sample, so unbiased.*\n",
     ]
     if pt:
         lines += [
-            "| Metric | Reference (2017–2019) | Same-pop 2020 | Shift |",
+            "| Metric | Reference (2017-2019) | Same-pop 2020 | Shift |",
             "|---|---|---|---|",
             f"| Mean score | {pt['reference']['mean']:.4f} | {pt['current']['mean']:.4f} | "
             f"{pt['current']['mean'] - pt['reference']['mean']:+.4f} |",
@@ -547,7 +559,7 @@ def write_markdown(path: Path, r: dict) -> None:
             "rather than by the year changing).",
         ]
     else:
-        lines.append("\n*Not computed — insufficient same-population 2020 windows.*\n")
+        lines.append("\n*Not computed -- insufficient same-population 2020 windows.*\n")
 
     lines += [
         "\n---\n",
@@ -560,15 +572,15 @@ def write_markdown(path: Path, r: dict) -> None:
         f"**{t['false_positive_rate']['inflation_factor']:.2f}x** |",
         f"| {t['update_threshold']} | Baseline update gate | "
         f"{t['baseline_update_pass_rate']['reference']:.2%} pass | "
-        f"{t['baseline_update_pass_rate']['current']:.2%} pass | — |",
+        f"{t['baseline_update_pass_rate']['current']:.2%} pass | -- |",
         "\n> *FPR inflation = how many more false alerts per day in 2020 vs training period.*\n",
 
         "---\n",
-        "## 3. Year Stability Check — AUC (Within Training Population)\n",
-        "\n> **Interpretation note:** Both the 2017–2019 and 2020 subsets used here "
-        "are **in-training-set data** — the XGBoost was trained on all 4 years of incident "
+        "## 3. Year Stability Check -- AUC (Within Training Population)\n",
+        "\n> **Interpretation note:** Both the 2017-2019 and 2020 subsets used here "
+        "are **in-training-set data** -- the XGBoost was trained on all 4 years of incident "
         "vessels. This delta is a year-over-year *stability* check, not a generalization "
-        "estimate. For generalization, use the CV-pooled AUC = **0.853 ± 0.029** from "
+        "estimate. For generalization, use the CV-pooled AUC = **0.853 +/- 0.029** from "
         "`kfold_cv_hybrid.py`.",
     ]
 
@@ -577,7 +589,7 @@ def write_markdown(path: Path, r: dict) -> None:
         lines += [
             "| Period | Windows | Positives | AUC-ROC | Avg Precision |",
             "|---|---|---|---|---|",
-            f"| Reference 2017–2019 | {ref_a['n_windows']:,} | {ref_a['n_positives']:,} | "
+            f"| Reference 2017-2019 | {ref_a['n_windows']:,} | {ref_a['n_positives']:,} | "
             f"{ref_a['auc_roc']:.4f} | {ref_a['average_precision']:.4f} |",
             f"| Current 2020 | {cur_a['n_windows']:,} | {cur_a['n_positives']:,} | "
             f"{cur_a['auc_roc']:.4f} | {cur_a['average_precision']:.4f} |",
@@ -595,7 +607,7 @@ def write_markdown(path: Path, r: dict) -> None:
                     f"| {row['incident_type']} | {row['n_windows']:,} | {row['auc_roc']:.4f} |"
                 )
     else:
-        lines.append("*AUC could not be computed — insufficient positive labels.*")
+        lines.append("*AUC could not be computed -- insufficient positive labels.*")
 
     lines += [
         "\n---\n",
@@ -615,13 +627,13 @@ def write_markdown(path: Path, r: dict) -> None:
         "## 5. Population Composition Drift\n",
         f"- Unique vessels in reference: **{pop['n_unique_vessels_reference']:,}**",
         f"- Unique vessels in current: **{pop['n_unique_vessels_current']:,}**",
-        f"- Vessels in 2020 never seen in 2017–2019: "
+        f"- Vessels in 2020 never seen in 2017-2019: "
         f"**{pop['n_new_vessels_in_current']:,}**",
     ]
     if pop.get("vessel_type_shift"):
         lines += [
             "\n**Top vessel-type shifts** (by absolute change):\n",
-            "| Vessel type code | Ref % | Cur % | delta |",
+            "| Vessel type code | Ref % | Cur % | Delta |",
             "|---|---|---|---|",
         ]
         for row in pop["vessel_type_shift"][:8]:
@@ -640,7 +652,7 @@ def write_markdown(path: Path, r: dict) -> None:
     trigger_ks = round(max(0.05, ks * 0.67), 3)
 
     lines += [
-        "These thresholds are calibrated from this analysis — not arbitrary.\n",
+        "These thresholds are calibrated from this analysis -- not arbitrary.\n",
         "| Trigger | Threshold | Rationale |",
         "|---|---|---|",
         f"| Primary: KS statistic | > **{trigger_ks}** | "
@@ -654,7 +666,6 @@ def write_markdown(path: Path, r: dict) -> None:
         "trigger is exceeded for two consecutive windows.",
     ]
 
-    # utf-8 required for the warning symbol and en-dash characters used above
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"  ✓ {path}")
 
@@ -669,7 +680,7 @@ def write_figures(out_dir: Path, ref: pd.DataFrame, cur: pd.DataFrame,
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
-        print("  ⚠  matplotlib not installed — skipping figures")
+        print("  !!  matplotlib not installed -- skipping figures")
         return
 
     fig_dir = out_dir / "figures"
@@ -681,7 +692,7 @@ def write_figures(out_dir: Path, ref: pd.DataFrame, cur: pd.DataFrame,
     cur_scores = cur["model_score"].dropna().values
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(xs, _cdf_at(ref_scores, xs), label="Reference 2017–2019", linewidth=2)
+    ax.plot(xs, _cdf_at(ref_scores, xs), label="Reference 2017-2019", linewidth=2)
     ax.plot(xs, _cdf_at(cur_scores, xs), label="Current 2020 (combined)",
             linewidth=2, linestyle="--")
     if same_pop_2020 is not None and len(same_pop_2020) >= 50:
@@ -776,24 +787,22 @@ def main(argv=None):
 
     args.output.mkdir(parents=True, exist_ok=True)
 
-    inc, cur_raw, feature_cols = load_data(
-        args.incident_parquet, args.clean_parquet
-    )
+    inc, cur_raw, feature_cols = load_data(args.incident_parquet, args.clean_parquet)
     ref, same_pop_2020, cur = build_reference_current(inc, cur_raw)
 
-    print("\nAnalysis 1 — feature covariate drift …")
+    print("\nAnalysis 1 -- feature covariate drift ...")
     feature_drift = analyse_feature_drift(ref, cur, feature_cols)
     sig = sum(1 for r in feature_drift if r["severity"] == "significant")
     mod = sum(1 for r in feature_drift if r["severity"] == "moderate")
     print(f"  {sig} significant, {mod} moderate out of {len(feature_drift)} features")
 
-    print("Analysis 2a — combined drift (year + population change) …")
+    print("Analysis 2a -- combined drift (year + population change) ...")
     prediction = analyse_prediction_drift(ref, cur)
     print(f"  KS={prediction['ks_stat']:.4f}  PSI={prediction['psi']:.4f}  "
           f"P90 shift={prediction['p90_relative_shift']:+.1%}  "
           f"severity={prediction['severity']}")
 
-    print("Analysis 2b — pure temporal drift (fixed population, year change only) …")
+    print("Analysis 2b -- pure temporal drift (fixed population, year change only) ...")
     pure_temporal = None
     if len(same_pop_2020) >= 50:
         pure_temporal = analyse_prediction_drift(ref, same_pop_2020)
@@ -802,18 +811,18 @@ def main(argv=None):
               f"P90 shift={pure_temporal['p90_relative_shift']:+.1%}  "
               f"severity={pure_temporal['severity']}")
     else:
-        print("  ⚠  fewer than 50 same-population 2020 windows — skipped")
+        print("  !!  fewer than 50 same-population 2020 windows -- skipped")
 
-    print("Analysis 3 — population composition drift …")
+    print("Analysis 3 -- population composition drift ...")
     population = analyse_population_drift(ref, cur)
     print(f"  New vessels in 2020: {population['n_new_vessels_in_current']}")
 
-    print("Analysis 4 — operational threshold impact …")
+    print("Analysis 4 -- operational threshold impact ...")
     thresholds = analyse_threshold_impact(ref, cur)
     fpr_inf = thresholds["false_positive_rate"]["inflation_factor"]
     print(f"  FPR inflation at {ANOMALY_THRESHOLD}: {fpr_inf:.2f}x")
 
-    print("Analysis 5 — year stability check (AUC within incident population) …")
+    print("Analysis 5 -- year stability check (AUC within incident population) ...")
     auc = analyse_auc_degradation(inc)
     if auc["auc_delta"] is not None:
         print(f"  AUC delta = {auc['auc_delta']:+.4f}  "
@@ -863,8 +872,8 @@ def main(argv=None):
     if auc["auc_delta"] is not None:
         print(f"  AUC delta     : {auc['auc_delta']:+.4f}")
     if pure_temporal is not None:
-        pop_share = ((prediction['ks_stat'] - pure_temporal['ks_stat'])
-                     / max(prediction['ks_stat'], 1e-9))
+        pop_share = ((prediction["ks_stat"] - pure_temporal["ks_stat"])
+                     / max(prediction["ks_stat"], 1e-9))
         print(f"  Pure-temporal KS: {pure_temporal['ks_stat']:.4f}  "
               f"(population effect share: {pop_share:.0%})")
     print(f"{'='*60}")
