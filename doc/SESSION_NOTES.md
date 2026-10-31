@@ -598,3 +598,104 @@ Maritime-Anomaly-Detection-System/
 ```
 
 ### Tests: 161 passing (unchanged)
+
+---
+
+# Session Notes — 2026-10-31 (Drift Analysis)
+
+**Date:** 2026-10-31
+**Branch:** `main`
+**Commit:** `ea68839`
+
+## Context
+
+The model was trained on 2017–2019 Hawaii AIS data. Using 2020 as a held-out
+"future" year lets us quantify how much the model's behaviour shifted before any
+live deployment — giving the thesis an empirical foundation for the self-learning
+loop claim.
+
+## What was built: `mlops/drift_analysis.py`
+
+A single self-contained script that compares the 2017-2019 training distribution
+against clean 2020 data across five analyses.
+
+### Reference vs current
+
+| | Reference | Current |
+|---|---|---|
+| Source | `hybrid_features_incident_vessels_with_scores.parquet` (label==0, years 2017–2019) | `hybrid_features_clean_2020_with_scores.parquet` |
+| Why this reference? | Exact distribution the XGBoost was calibrated against during training — the most defensible choice. State this framing explicitly in the thesis. |
+
+### Five analyses
+
+| # | Name | Metric | What it tells you |
+|---|---|---|---|
+| 1 | Feature covariate drift | KS statistic + PSI per feature | Which of the 55 input features changed and by how much |
+| 2 | Prediction drift | KS + PSI on model_score; P90 absolute/relative shift | Whether the model's output distribution shifted — the headline thesis number |
+| 3 | Population composition | Vessel-type distribution, new vessels, geo bounding box | Why the distribution shifted |
+| 4 | Threshold impact | FPR inflation at 0.85 (anomaly flag) and 0.77 (update gate) | Operational cost of not retraining |
+| 5 | Discriminative degradation | AUC-ROC and Average Precision: 2017-19 vs 2020, per incident type | Whether the model got worse at separating anomalies from normal |
+
+### Outputs
+
+```
+reports/drift_YYYYMMDD/
+├── drift.json         machine-readable — feeds Phase 8 retraining trigger
+├── drift_report.md    thesis-ready markdown with all tables and suggested thresholds
+└── figures/
+    └── score_cdf.png  CDF comparison plot — the key thesis figure
+```
+
+### Design decisions vs the other plan
+
+| Other plan | This implementation | Reason |
+|---|---|---|
+| Re-score reference data | Use existing model_score in parquet | Avoids inconsistency if model was re-saved; stored scores are what the model actually saw |
+| 6 analyses inc. temporal | 5 analyses (temporal dropped) | datetime_hst not in parquet; returning [] adds no value |
+| CI weekly drift workflow | Omitted | CI has no parquet data; one-shot script is correct for thesis |
+| Inline PSI code with bug | Clean PSI with proper edge handling | Edge bins set to ±inf before histogram |
+
+### How to run (on the other device)
+
+```bash
+git pull   # get this commit
+python -m mlops.drift_analysis   # uses default paths in hybrid/
+# or with explicit paths:
+python -m mlops.drift_analysis \
+    --incident-parquet hybrid/hybrid_features_incident_vessels_with_scores.parquet \
+    --clean-parquet    hybrid/hybrid_features_clean_2020_with_scores.parquet \
+    --output           reports/drift_2020/
+```
+
+Terminal prints three headline numbers:
+```
+KS statistic  : 0.XXXX  (significant/moderate/stable)
+P90 shift     : +XX.X%
+FPR inflation : X.XXx
+AUC Δ         : ±0.XXXX
+```
+
+Commit the `reports/drift_2020/` folder back to the repo — those outputs are the
+thesis results section. The parquets themselves stay gitignored.
+
+### What these numbers mean for the thesis abstract
+
+- **KS statistic**: How different the score distributions are (0=identical, 1=disjoint).
+  If KS > 0.15 it is thesis-worthy as "meaningful shift".
+- **P90 shift**: The top-10% of scores moved by this fraction. A +20% shift at P90
+  means the model systematically scores 2020 windows higher.
+- **FPR inflation**: At the 0.85 threshold, if FPR goes from 3% → 9%, that is 3× more
+  false alerts per day — the operational argument for retraining.
+- **AUC Δ**: If negative, the model got worse at discrimination on 2020 incident data.
+  If near zero, only calibration drifted (not discriminative power) — a weaker but
+  still valid drift argument.
+
+### Suggested trigger thresholds (Phase 8)
+
+The script's markdown report includes empirically derived thresholds:
+- **Primary**: KS > ~67% of observed 2017→2020 shift
+- **Secondary**: P90 relative shift > 15%
+- **Guard**: FPR inflation > 2×
+
+These replace arbitrary magic numbers with calibrated empirical values — important for
+the thesis defence.
