@@ -15,13 +15,35 @@ built on 2017-2019 clean behaviour. 2020 is genuinely held-out from the system's
 operational perspective. Measuring how much the score distribution shifted between
 these two periods quantifies the empirical case for the self-learning loop.
 
-Reference set choice
---------------------
+Reference set choice and known limitations
+------------------------------------------
 We use normal windows (label==0, years 2017-2019) from
 hybrid_features_incident_vessels_with_scores.parquet rather than a separate
 "clean 2017-2019" table.  This is the exact distribution the XGBoost was
 calibrated against at training time — the most defensible reference for drift.
-State this clearly in the thesis methodology section.
+
+Three caveats to state explicitly in the thesis methodology section:
+
+1. COMBINED DRIFT — The primary comparison (reference vs clean-2020) mixes two
+   things: (a) year change 2019→2020 and (b) population change from incident-prone
+   vessels to clean vessels.  Both are operationally real, but a reviewer may ask
+   to separate them.  The script therefore also runs a "pure temporal drift"
+   comparison: 2020 normal windows from the *same* incident-vessel population vs
+   the 2017-2019 reference.  This isolates year change on a fixed population.
+
+2. AUC IS A YEAR STABILITY CHECK, NOT GENERALIZATION — analyse_auc_degradation
+   compares 2017-19 vs 2020 incident windows, but the model was trained on all
+   4 years of incident vessels.  Both periods are in-training-set data.  Do NOT
+   cite the AUC delta as generalization evidence.  Use the CV-pooled AUC (0.853
+   from kfold_cv_hybrid.py) for generalization claims; use this delta only to
+   show year-over-year stability within the known population.
+
+3. BIASED REFERENCE POPULATION — The reference is not "all normal maritime
+   behaviour" — it is the steady-state behaviour of vessels that occasionally
+   become incidents (tows, tankers, cargo ships).  Vessel types absent from that
+   population (fishing, pleasure craft) will appear to drift even if their
+   behaviour is constant.  State this framing explicitly so reviewers understand
+   what the reference represents.
 
 Column assumptions (verified from build_hybrid_features.py + trained model)
 ---------------------------------------------------------------------------
@@ -177,10 +199,17 @@ def build_reference_current(inc: pd.DataFrame, cur: pd.DataFrame):
             "Reference set is empty. Check that the incident parquet has "
             "label==0 rows with year in {2017, 2018, 2019}."
         )
-    print(f"\nReference : {len(ref):,} normal windows from {ref['MMSI'].nunique():,} vessels "
+
+    # Same population as reference but year 2020 — used for pure temporal drift.
+    # This isolates the year-change signal by holding the vessel population fixed.
+    same_pop_2020 = inc[(inc["label"] == 0) & (inc["year"] == "2020")].copy()
+
+    print(f"\nReference        : {len(ref):,} normal windows from {ref['MMSI'].nunique():,} vessels "
           f"({', '.join(sorted(ref['year'].unique()))})")
-    print(f"Current   : {len(cur):,} clean-2020 windows from {cur['MMSI'].nunique():,} vessels")
-    return ref, cur
+    print(f"Same-pop 2020    : {len(same_pop_2020):,} normal windows from "
+          f"{same_pop_2020['MMSI'].nunique():,} vessels (pure temporal drift)")
+    print(f"Current (clean)  : {len(cur):,} clean-2020 windows from {cur['MMSI'].nunique():,} vessels")
+    return ref, same_pop_2020, cur
 
 
 # ── analysis 1 — feature covariate drift ─────────────────────────────────────
@@ -315,6 +344,18 @@ def analyse_threshold_impact(ref: pd.DataFrame, cur: pd.DataFrame) -> dict:
 # ── analysis 5 — discriminative degradation ───────────────────────────────────
 
 def analyse_auc_degradation(inc: pd.DataFrame) -> dict:
+    """Year-over-year AUC stability check on the incident-vessel population.
+
+    IMPORTANT — this is NOT a generalization test.  The final XGBoost was
+    trained on all 4 years of incident vessels, so both the 2017-19 and 2020
+    subsets are in-training-set data.  Interpret the delta as:
+
+        "Did 2020 incident patterns become harder or easier to separate from
+         2020 normal patterns, compared to 2017-2019?"
+
+    For generalization claims, use the CV-pooled AUC from kfold_cv_hybrid.py
+    (0.853 ± 0.029) — that is the honest held-out estimate.
+    """
     from sklearn.metrics import average_precision_score, roc_auc_score
 
     def auc_for(df: pd.DataFrame, label: str) -> dict:
@@ -376,6 +417,7 @@ def write_json(path: Path, results: dict) -> None:
 
 def write_markdown(path: Path, r: dict) -> None:
     p = r["prediction"]
+    pt = r.get("pure_temporal_drift")
     t = r["thresholds"]
     a = r["auc"]
     pop = r["population"]
@@ -383,14 +425,22 @@ def write_markdown(path: Path, r: dict) -> None:
     lines = [
         "# Maritime AIS Anomaly Detection — Drift Analysis Report",
         f"\n**Generated:** {r['generated_at']} UTC  ",
-        f"**Reference:** 2017–2019 normal windows — {r['data']['n_reference']:,} windows from "
-        f"{r['data']['n_reference_vessels']:,} vessels  ",
-        f"**Current:** clean 2020 — {r['data']['n_current']:,} windows from "
+        f"**Reference:** 2017–2019 normal windows from incident-vessel population — "
+        f"{r['data']['n_reference']:,} windows from {r['data']['n_reference_vessels']:,} vessels  ",
+        f"**Current (combined):** clean-2020 vessels — {r['data']['n_current']:,} windows from "
         f"{r['data']['n_current_vessels']:,} vessels  ",
+        f"**Current (fixed pop):** 2020 normal windows from same incident-vessel population — "
+        f"{r['data']['n_same_pop_2020']:,} windows  ",
         f"**Features analysed:** {r['data']['n_features']}",
+        "\n> ⚠ **Population note:** The reference is the steady-state behaviour of "
+        "incident-prone vessels (tows, tankers, cargo ships) — not all normal maritime "
+        "traffic. Vessel types absent from this population (e.g. fishing, pleasure craft) "
+        "will appear to drift even if their behaviour did not change. See methodology section.",
         "\n---\n",
 
-        "## 1. Prediction Drift (Headline Result)\n",
+        "## 1. Prediction Drift — Combined (Year + Population Change)\n",
+        "\n*This is the operationally relevant number: how much did the model's score "
+        "distribution shift on the actual 2020 traffic mix?*\n",
         "| Metric | Reference (2017–2019) | Current (2020) | Shift |",
         "|---|---|---|---|",
         f"| Mean score | {p['reference']['mean']:.4f} | {p['current']['mean']:.4f} | "
@@ -405,8 +455,34 @@ def write_markdown(path: Path, r: dict) -> None:
         f"**PSI:** {p['psi']:.4f} &nbsp;|&nbsp; "
         f"**Severity:** {p['severity']}",
         "\n> *PSI < 0.10 = stable, 0.10–0.25 = moderate, ≥ 0.25 = significant.*\n",
+    ]
 
-        "---\n",
+    lines += [
+        "\n---\n",
+        "## 1b. Prediction Drift — Pure Temporal (Fixed Population)\n",
+        "\n*Same incident-vessel population, 2020 vs 2017–2019. "
+        "Isolates year change from population change.*\n",
+    ]
+    if pt:
+        lines += [
+            "| Metric | Reference (2017–2019) | Same-pop 2020 | Shift |",
+            "|---|---|---|---|",
+            f"| Mean score | {pt['reference']['mean']:.4f} | {pt['current']['mean']:.4f} | "
+            f"{pt['current']['mean'] - pt['reference']['mean']:+.4f} |",
+            f"| P90 | {pt['reference']['p90']:.4f} | {pt['current']['p90']:.4f} | "
+            f"**{pt['p90_absolute_shift']:+.4f}** ({pt['p90_relative_shift']:+.1%}) |",
+            f"\n**KS:** {pt['ks_stat']:.4f} &nbsp;|&nbsp; "
+            f"**PSI:** {pt['psi']:.4f} &nbsp;|&nbsp; **Severity:** {pt['severity']}",
+            "\n> Compare the KS here with the combined drift KS above. "
+            "The gap quantifies the **population composition effect** "
+            "(how much of the overall drift is explained by the different vessel mix "
+            "rather than by the year changing).",
+        ]
+    else:
+        lines.append("\n*Not computed — insufficient same-population 2020 windows.*\n")
+
+    lines += [
+        "\n---\n",
         "## 2. Operational Threshold Impact\n",
         "| Threshold | Purpose | Reference FPR | Current FPR | Inflation |",
         "|---|---|---|---|---|",
@@ -420,7 +496,12 @@ def write_markdown(path: Path, r: dict) -> None:
         "\n> *FPR inflation = how many more false alerts per day in 2020 vs training period.*\n",
 
         "---\n",
-        "## 3. Discriminative Performance (AUC)\n",
+        "## 3. Year Stability Check — AUC (Within Training Population)\n",
+        "\n> ⚠ **Interpretation note:** Both the 2017–2019 and 2020 subsets used here "
+        "are **in-training-set data** — the XGBoost was trained on all 4 years of incident "
+        "vessels. This delta is a year-over-year *stability* check, not a generalization "
+        "estimate. For generalization, use the CV-pooled AUC = **0.853 ± 0.029** from "
+        "`kfold_cv_hybrid.py`.",
     ]
 
     if a["reference_2017_2019"] and a["current_2020"]:
@@ -510,7 +591,7 @@ def write_markdown(path: Path, r: dict) -> None:
 # ── output: CDF figure ────────────────────────────────────────────────────────
 
 def write_figures(out_dir: Path, ref: pd.DataFrame, cur: pd.DataFrame,
-                  prediction: dict) -> None:
+                  prediction: dict, same_pop_2020=None) -> None:
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -529,7 +610,11 @@ def write_figures(out_dir: Path, ref: pd.DataFrame, cur: pd.DataFrame,
 
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.plot(xs, _cdf_at(ref_scores, xs), label="Reference 2017–2019", linewidth=2)
-    ax.plot(xs, _cdf_at(cur_scores, xs), label="Current 2020", linewidth=2, linestyle="--")
+    ax.plot(xs, _cdf_at(cur_scores, xs), label="Current 2020 (combined)", linewidth=2, linestyle="--")
+    if same_pop_2020 is not None and len(same_pop_2020) >= 50:
+        sp_scores = same_pop_2020["model_score"].dropna().values
+        ax.plot(xs, _cdf_at(sp_scores, xs), label="Same-pop 2020 (fixed population)",
+                linewidth=1.5, linestyle=":")
     ax.axvline(ANOMALY_THRESHOLD, color="red", linestyle=":", linewidth=1,
                label=f"Anomaly threshold ({ANOMALY_THRESHOLD})")
     ax.axvline(UPDATE_THRESHOLD, color="orange", linestyle=":", linewidth=1,
@@ -588,7 +673,7 @@ def main(argv=None):
 
     # ── load ──────────────────────────────────────────────────────────────────
     inc, cur_raw, feature_cols = load_data(args.incident_parquet, args.clean_parquet)
-    ref, cur = build_reference_current(inc, cur_raw)
+    ref, same_pop_2020, cur = build_reference_current(inc, cur_raw)
 
     # ── run analyses ──────────────────────────────────────────────────────────
     print("\nAnalysis 1 — feature covariate drift …")
@@ -597,10 +682,20 @@ def main(argv=None):
     mod = sum(1 for r in feature_drift if r["severity"] == "moderate")
     print(f"  {sig} significant, {mod} moderate out of {len(feature_drift)} features")
 
-    print("Analysis 2 — prediction drift …")
+    print("Analysis 2a — combined drift (year + population change) …")
     prediction = analyse_prediction_drift(ref, cur)
     print(f"  KS={prediction['ks_stat']:.4f}  PSI={prediction['psi']:.4f}  "
           f"P90 shift={prediction['p90_relative_shift']:+.1%}  severity={prediction['severity']}")
+
+    print("Analysis 2b — pure temporal drift (fixed population, year change only) …")
+    pure_temporal = None
+    if len(same_pop_2020) >= 50:
+        pure_temporal = analyse_prediction_drift(ref, same_pop_2020)
+        print(f"  KS={pure_temporal['ks_stat']:.4f}  PSI={pure_temporal['psi']:.4f}  "
+              f"P90 shift={pure_temporal['p90_relative_shift']:+.1%}  "
+              f"severity={pure_temporal['severity']}")
+    else:
+        print("  ⚠  fewer than 50 same-population 2020 windows — skipped")
 
     print("Analysis 3 — population composition drift …")
     population = analyse_population_drift(ref, cur)
@@ -611,10 +706,11 @@ def main(argv=None):
     fpr_inf = thresholds["false_positive_rate"]["inflation_factor"]
     print(f"  FPR inflation at {ANOMALY_THRESHOLD}: {fpr_inf:.2f}×")
 
-    print("Analysis 5 — discriminative degradation (AUC) …")
+    print("Analysis 5 — year stability check (AUC within incident population) …")
     auc = analyse_auc_degradation(inc)
     if auc["auc_delta"] is not None:
-        print(f"  AUC Δ = {auc['auc_delta']:+.4f}")
+        print(f"  AUC Δ = {auc['auc_delta']:+.4f}  "
+              f"(note: within-training-set check; use CV AUC=0.853 for generalization)")
 
     # ── write outputs ─────────────────────────────────────────────────────────
     results = {
@@ -624,12 +720,20 @@ def main(argv=None):
             "clean_parquet": str(args.clean_parquet),
             "n_reference": int(len(ref)),
             "n_reference_vessels": int(ref["MMSI"].nunique()),
+            "n_same_pop_2020": int(len(same_pop_2020)),
             "n_current": int(len(cur)),
             "n_current_vessels": int(cur["MMSI"].nunique()),
             "n_features": len(feature_cols),
             "reference_years": sorted(REFERENCE_YEARS),
+            "population_note": (
+                "Reference = normal windows of incident-prone vessels (2017-2019). "
+                "This is what the model was calibrated against, not all normal maritime "
+                "behaviour. Vessel types absent from this population will appear to drift "
+                "even if their behaviour is constant."
+            ),
         },
         "prediction": prediction,
+        "pure_temporal_drift": pure_temporal,
         "thresholds": thresholds,
         "auc": auc,
         "feature_drift": feature_drift,
@@ -639,7 +743,7 @@ def main(argv=None):
     print(f"\nWriting outputs to {args.output}/")
     write_json(args.output / "drift.json", results)
     write_markdown(args.output / "drift_report.md", results)
-    write_figures(args.output, ref, cur, prediction)
+    write_figures(args.output, ref, cur, prediction, same_pop_2020)
 
     # ── summary ───────────────────────────────────────────────────────────────
     print(

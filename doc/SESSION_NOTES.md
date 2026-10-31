@@ -699,3 +699,59 @@ The script's markdown report includes empirically derived thresholds:
 
 These replace arbitrary magic numbers with calibrated empirical values — important for
 the thesis defence.
+
+---
+
+## 2026-10-31 (cont.) — Three-caveat fix for drift_analysis.py
+
+A reviewer (second AI pass) identified three methodological caveats in the original
+script. All three were addressed in this session.
+
+### Caveat 1 — Combined drift conflates year change + population change
+
+**Problem**: The primary comparison (2017-19 incident-vessel normals vs clean-2020 vessels)
+mixes two effects: (a) year change 2019→2020 and (b) a completely different vessel population.
+A thesis reviewer may ask to separate them.
+
+**Fix**: `build_reference_current()` now returns three values — `ref`, `same_pop_2020`, `cur`.
+`same_pop_2020` = label==0 windows from the **same incident-vessel population** in 2020.
+Running `analyse_prediction_drift(ref, same_pop_2020)` isolates pure temporal drift on a
+fixed population. Results are reported as **Section 1b** in the markdown report, with an
+explicit note explaining how the gap between Section 1 KS and Section 1b KS quantifies the
+population composition effect.
+
+### Caveat 2 — AUC comparison is within-training-set data
+
+**Problem**: The XGBoost was trained on all 4 years of incident vessels. Both the 2017-19
+and 2020 incident subsets used in `analyse_auc_degradation()` are therefore in-training-set
+data. Labelling this "discriminative degradation" is misleading.
+
+**Fix**:
+- Section renamed from "Discriminative Performance (AUC)" → **"Year Stability Check — AUC
+  (Within Training Population)"**
+- Interpretation warning block added to the markdown report
+- `analyse_auc_degradation()` docstring updated with explicit "NOT a generalization test" note
+- Terminal print: `(note: within-training-set check; use CV AUC=0.853 for generalization)`
+- For generalization claims: **CV-pooled AUC = 0.853 ± 0.029** from `kfold_cv_hybrid.py`
+
+### Caveat 3 — Reference is a biased subpopulation (incident-prone vessels only)
+
+**Problem**: The reference is the steady-state behaviour of vessels that occasionally become
+incidents (tows, tankers, cargo ships) — not all normal maritime traffic. Vessel types absent
+from this population (fishing, pleasure craft) will appear to drift even if their behaviour
+is constant.
+
+**Fix**: Stated explicitly in:
+- Module docstring (Caveat 3 bullet)
+- Report header (population note warning block)
+- JSON output `data.population_note` field
+
+### Score CDF figure updated
+
+`write_figures()` now accepts `same_pop_2020` as an optional parameter and plots it as a
+third dotted line ("Same-pop 2020 (fixed population)") on the score CDF, making the
+population composition effect visually clear.
+
+### Files changed
+
+- `mlops/drift_analysis.py` — caveat fixes (syntax OK, 161/161 tests pass)
