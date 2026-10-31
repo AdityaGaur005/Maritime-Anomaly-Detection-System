@@ -755,3 +755,76 @@ population composition effect visually clear.
 ### Files changed
 
 - `mlops/drift_analysis.py` — caveat fixes (syntax OK, 161/161 tests pass)
+
+---
+
+## 2026-10-31 (cont.) — Actual drift results on 2020 data
+
+Script was run on the other device. Parquets had no `model_score` column, so the
+script scored them on-the-fly using `xgboost_hybrid_final.json`. This revealed a
+missing feature in the committed version — on-the-fly scoring was added and
+committed in a follow-up (see below).
+
+### Dataset sizes
+
+| | Count |
+|---|---|
+| Incident parquet total windows | 1,011,828 |
+| Incident parquet vessels | 145 |
+| Incident positives | 10,409 |
+| Clean-2020 windows | 1,253,579 |
+| Clean-2020 vessels | 892 |
+| Reference (label==0, 2017-2019) | 760,204 windows / 115 vessels |
+| Same-pop 2020 (label==0, 2020) | 241,215 windows / 45 vessels |
+
+### Drift results
+
+| Metric | Value | Severity |
+|---|---|---|
+| Combined KS (ref vs clean-2020) | 0.0682 | stable |
+| Combined PSI | 0.0253 | stable |
+| Combined P90 shift | -0.3% | negligible |
+| Pure-temporal KS (ref vs same-pop-2020) | 0.1298 | moderate |
+| Pure-temporal PSI | 0.0901 | moderate |
+| Pure-temporal P90 shift | -6.6% | moderate |
+| FPR inflation at 0.85 | 1.26x | within tolerance |
+| AUC delta (year stability check) | +0.033 | improved |
+| Features significant | 4 of 55 | — |
+| Features moderate | 21 of 55 | — |
+| Population effect share | -90% | — |
+
+### Interpretation of counter-intuitive results
+
+The key finding: **combined drift is stable (KS=0.068) but pure temporal drift is
+moderate (KS=0.130)**. The population effect is negative (-90%), meaning the
+population change *masks* the temporal drift. Clean 2020 vessels happen to score
+similarly to the 2017-2019 incident-vessel normals, so the combined comparison
+looks stable even though the same incident population drifted moderately
+year-over-year.
+
+**Thesis argument:**
+- "The model is operationally stable on live 2020 traffic (combined KS=0.068, stable;
+  FPR inflation=1.26×), validating the calibration thresholds for near-term deployment."
+- "However, pure-temporal drift within the incident-vessel population (KS=0.130, moderate,
+  P90 -6.6%) shows temporal drift is accumulating, justifying the self-learning mechanism
+  for multi-year deployment."
+- "Notably, 2020 incident windows were more discriminable (+0.033 AUC), possibly reflecting
+  more extreme events in 2020. This does not undermine the drift argument since feature-level
+  drift (4 significant, 21 moderate of 55 features) confirms the input distribution shifted."
+
+**On-the-fly scoring caveat (new Caveat 2 — in-sample bias):**
+The reference scores are in-sample (model was trained on 2017-2019 incident vessels), so
+they are optimistically low. The combined-drift KS=0.068 is an upper bound on true
+operational drift. The pure-temporal KS=0.130 is unbiased (both sides in-sample).
+
+### Script improvements applied in this session
+
+After seeing the results, these were added to `drift_analysis.py` and committed:
+1. **On-the-fly XGBoost scoring** — `_score_with_xgb()` and updated `load_data()`.
+   Essential: neither parquet had pre-computed model_score.
+2. **Feature bar chart** — `write_figures()` now takes `feature_drift` and produces
+   `figures/feature_ks.png` (top-20 drifted features, KS + PSI dual bar chart).
+3. **4th caveat (in-sample bias)** — added to module docstring and report header.
+4. **`in_sample_bias_note`** added to JSON output `data` block.
+5. **Better summary** — terminal summary now shows pure-temporal KS and population
+   effect share alongside the main headline numbers.
