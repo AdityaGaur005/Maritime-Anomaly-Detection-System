@@ -849,7 +849,7 @@ After seeing the results, these were added to `drift_analysis.py` and committed:
 | Quantity | Value | Source |
 |---|---|---|
 | CV-pooled AUC-ROC | 0.853 ± 0.029 | `hybrid/kfold_cv_hybrid.py` |
-| Combined drift KS | 0.068 (stable) | `reports/drift_20261031/drift.json` |
+| Combined drift KS | 0.068 (stable) | `reports/drift_20261102/drift.json` |
 | Pure-temporal KS | 0.130 (moderate) | same |
 | FPR inflation at τ=0.85 | 1.26× | same |
 | AUC year-stability delta | +0.033 | same |
@@ -857,6 +857,36 @@ After seeing the results, these were added to `drift_analysis.py` and committed:
 | LSTM-AE hidden_dim | 128 | `model/train_lstm_ae.py` |
 | XGBoost n_estimators | 67 | `hybrid/hybrid_final.py` |
 | Feature vector size | 55 | `mlops/feature_factory.py` |
+
+---
+
+## Paper Update — Revised Drift Results (2026-11-02)
+
+**Trigger:** User re-ran `mlops/drift_analysis.py`; new results in `reports/drift_20261102/`.  
+**Core metrics unchanged** — KS, PSI, FPR inflation, AUC delta all identical to previous run.
+
+### Changes applied to `generate_paper.py` → `IEEE_Research_Paper.docx`
+
+| Section | Change |
+|---|---|
+| IV-G Drift Framework | Trigger calibration method updated: now uses 75% of pure temporal KS (not 67% of combined KS). Explicit note that combined drift is masked by population composition. |
+| VI-B Year-Stability AUC | Added **Table IV** with per-incident-type AUC breakdown (10 types, range 0.746–0.964). Added paragraph interpreting kinematic-signature vs. context-dependent incidents. |
+| VI-E Threshold Analysis | Updated trigger numbers: KS > 0.097 (was 0.046), P90 > 5.0% (was 15%). Added sentence explaining why pure-temporal calibration is the correct baseline. |
+
+### Per-incident-type AUC (2020, new in paper)
+
+| Incident type | AUC-ROC |
+|---|---|
+| Property damage | 0.746 |
+| Route deviation | 0.810 |
+| Collision | 0.824 |
+| Container loss | 0.876 |
+| Loss/reduction of propulsion | 0.884 |
+| Loss of power | 0.931 |
+| Route deviation, Irregular tow | 0.949 |
+| Material failure | 0.952 |
+| Irregular tow | 0.962 |
+| Loss/reduction of propulsion, Irregular tow | 0.964 |
 
 ### References (15 real DOI-verified citations)
 

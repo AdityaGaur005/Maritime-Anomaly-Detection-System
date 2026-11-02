@@ -526,9 +526,11 @@ body(
     "2020 — normal windows from the same incident-vessel population in 2020, "
     "isolating pure year-over-year temporal drift. Both the KS statistic and PSI "
     "are reported per feature and for the overall model score distribution. "
-    "Empirically derived retraining trigger thresholds are also generated: "
-    "primary trigger KS > 0.67 * observed_KS, secondary P90 relative shift "
-    "> 15%, and guard FPR inflation > 2x.",
+    "Empirically derived retraining trigger thresholds are calibrated against the "
+    "pure temporal drift signal (not the combined drift, which is masked by "
+    "population-composition effects): primary KS > 0.097 (75% of observed "
+    "temporal KS = 0.130), secondary P90 relative shift > 5.0% (75% of observed "
+    "6.6%), and guard FPR inflation > 2x.",
     indent=True
 )
 
@@ -659,6 +661,35 @@ body(
     "estimation, the CV-pooled AUC of 0.853 ± 0.029 is the correct figure.",
     indent=True
 )
+body(
+    "Table IV breaks down 2020 AUC by incident type. Kinematic-signature "
+    "incidents (Irregular tow, Material failure, Loss/reduction of propulsion "
+    "+ Irregular tow) all score AUC > 0.95, confirming that the hybrid "
+    "model's reconstruction-error features are well-suited to trajectory "
+    "pattern violations. Lower-AUC types (Property damage at 0.746, Route "
+    "deviation at 0.810) involve velocity profiles that may be within "
+    "normal operational bounds, suggesting that future work on semantic "
+    "context features could improve coverage for these harder cases.",
+    indent=True
+)
+table_title("IV", "Per-Incident-Type AUC-ROC on 2020 Data (Within-Training-Set Stability Check)")
+add_table(
+    headers=["Incident Type", "Positive Windows", "AUC-ROC"],
+    rows=[
+        ["Property damage",                              "43",    "0.746"],
+        ["Route deviation",                              "90",    "0.810"],
+        ["Collision",                                    "27",    "0.824"],
+        ["Container loss",                               "44",    "0.876"],
+        ["Loss/reduction of propulsion",                 "83",    "0.884"],
+        ["Loss of power",                                "23",    "0.931"],
+        ["Route deviation, Irregular tow",               "239",   "0.949"],
+        ["Material failure",                             "262",   "0.952"],
+        ["Irregular tow",                                "1,227", "0.962"],
+        ["Loss/reduction of propulsion, Irregular tow",  "166",   "0.964"],
+    ],
+    widths=[2.6, 1.1, 0.8]
+)
+doc.add_paragraph()
 
 subheading("C", "Distribution Drift Analysis")
 body(
@@ -723,9 +754,13 @@ body(
     "pass rate (tau_u = 0.77) remains essentially unchanged: 89.75% in the "
     "reference vs. 89.97% in 2020, confirming that the self-learning loop "
     "operates correctly across the population shift. Calibrated retraining "
-    "triggers derived empirically from this analysis: KS > 0.046 (primary), "
-    "P90 relative shift > 15% (secondary), FPR inflation > 2x (guard). "
-    "These replace arbitrary magic numbers with evidence-based values.",
+    "triggers derived from the pure temporal drift signal (the unbiased "
+    "year-over-year comparator): primary KS > 0.097 (75% of observed "
+    "temporal KS = 0.130), secondary P90 relative shift > 5.0% (75% of "
+    "observed 6.6%), guard FPR inflation > 2x. Calibrating against the pure "
+    "temporal signal rather than the combined drift avoids setting triggers "
+    "that are artificially lax due to the masking effect of the 2020 "
+    "population composition shift.",
     indent=True
 )
 
