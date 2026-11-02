@@ -456,12 +456,12 @@ body(
 subheading("C", "TransformerVAE Architecture")
 body(
     "The TransformerVAE processes a normalised 30x7 input window (7 kinematic "
-    "channels). The encoder applies a learned linear projection to d_model = 64 "
+    "channels). The encoder applies a learned linear projection to d_model = 256 "
     "dimensions, adds sinusoidal positional encoding, and passes through "
-    "N_enc = 2 Transformer encoder layers with n_head = 4 attention heads and "
-    "d_ff = 128 feed-forward dimension. The pooled (mean-over-time) representation "
+    "N_enc = 6 Transformer encoder layers with n_head = 8 attention heads and "
+    "d_ff = 512 feed-forward dimension. The pooled (mean-over-time) representation "
     "is projected to a latent mean mu and log-variance logvar of dimension "
-    "d_z = 16. For inference, only mu is used (no sampling), ensuring "
+    "d_z = 64. For inference, only mu is used (no sampling), ensuring "
     "deterministic scoring.",
     indent=True
 )
@@ -470,7 +470,7 @@ body(
     "where beta = 0.01 weights the KL regularisation term and MSE is averaged "
     "over the 30 x 7 reconstruction. The decoder expands the latent vector back "
     "to a (30, d_model) sequence via repetition and positional encoding, then "
-    "applies 2 Transformer encoder layers and a linear output projection. "
+    "applies 6 Transformer encoder layers and a linear output projection. "
     "Reconstruction error per channel is computed as the mean squared error "
     "between the original normalised window and the decoded output.",
     indent=True
@@ -493,9 +493,10 @@ body(
 subheading("E", "XGBoost Hybrid Classifier")
 body(
     "The 55-dimensional feature vector is consumed by an XGBoost classifier "
-    "trained on all 145 incident-prone vessels (760,204 normal windows, 10,409 "
+    "trained on all 145 incident-prone vessels (1,001,419 normal windows, 10,409 "
     "positive windows across 2017-2020). Class imbalance is handled via "
-    "scale_pos_weight = 96.8 (ratio of negative to positive windows). "
+    "scale_pos_weight = 96.2 (ratio 1,001,419 / 10,409 computed from the full "
+    "training set). "
     "Hyperparameters: max_depth = 6, learning_rate = 0.05, subsample = 0.8, "
     "colsample_bytree = 0.8, n_estimators = 67 (median of per-fold "
     "early-stopping best iterations from 5-fold CV). vessel_type_code is "
@@ -611,8 +612,11 @@ body(
     "via Docker and pushed to AWS ECR through a GitHub Actions CI/CD pipeline "
     "that performs build, Trivy security scan, smoke-test of the /health "
     "endpoint, and conditional ECR push. Real-time AIS data is consumed "
-    "via the AISstream.io WebSocket with deflate compression, filtered to "
-    "up to 200 MMSI identifiers.",
+    "via the AISstream.io WebSocket with permessage-deflate compression, "
+    "filtered geographically by a bounding box covering the Hawaiian coastal "
+    "waters (lat 18.5–22.8°N, lon 161.0–154.5°W). An optional MMSI watchlist "
+    "can be overlaid (up to 200 vessels) for vessel-specific monitoring; the "
+    "default mode passes all vessels within the bounding box.",
     indent=True
 )
 
@@ -630,7 +634,7 @@ body(
     "Average Precision of 0.296 ± 0.049 reflects the challenging class imbalance "
     "(positive rate approximately 1.03%). Per-fold best-iteration spread of "
     "19 to 104 rounds reflects the small per-fold vessel count (~17 vessels "
-    "in each validation group) and is expected given the limited number of "
+    "in each validation group) and i****pected given the limited number of "
     "labelled incident vessels (145 total).",
     indent=True
 )
@@ -641,7 +645,7 @@ add_table(
     rows=[
         ["AUC-ROC",             "0.853", "0.029", "0.812", "0.893"],
         ["Average Precision",   "0.296", "0.049", "0.241", "0.371"],
-        ["FPR at tau=0.85",     "0.041", "0.008", "0.030", "0.052"],
+        ["FPR at tau=0.85",     "0.0415", "0.008", "0.030", "0.052"],
         ["XGB Best Iteration",  "60.2",  "31.5",  "19",    "104"],
     ],
     widths=[1.5, 0.8, 0.8, 0.8, 0.8]
@@ -735,7 +739,7 @@ body(
     "composition shift: the reference is 31.4% tugs (type 31) and 20.8% of "
     "a proprietary incident-specific type (1025), while 2020 clean traffic "
     "is 40.6% fishing vessels (type 30), 5.7% pleasure craft (type 37), and "
-    "5.1% sailing vessels (type 36). Despite this extreme feature-level drift, "
+    "5.1% sailing vessels (type 36). Despite thi****treme feature-level drift, "
     "the output distribution remains stable, demonstrating that the XGBoost "
     "model learned to discriminate anomalies via kinematic behaviour (trajectory "
     "reconstruction errors, speed patterns) rather than vessel-type metadata. "
@@ -767,7 +771,7 @@ body(
 subheading("F", "Discussion of Limitations")
 body(
     "Several limitations should be acknowledged. First, the reference set "
-    "consists exclusively of incident-prone vessels (tugs, tankers, cargo); "
+    "consist****clusively of incident-prone vessels (tugs, tankers, cargo); "
     "vessel types absent from this population (fishing, pleasure craft) "
     "will appear to drift even if their behaviour is constant, as their "
     "dynamics are not represented in the reference. Second, reference "
@@ -845,7 +849,7 @@ refs = [
     ('[4]', 'D. Nguyen, R. Vadaine, G. Hajduch, R. Garello, and R. Fablet, "GeoTrackNet — '
             'A maritime anomaly detector using probabilistic neural network representation '
             'of AIS tracks and a contrario detection," IEEE Trans. Intell. Transp. Syst., '
-            'vol. 23, no. 8, pp. 11086-11099, Aug. 2022, doi: 10.1109/TITS.2021.3100023.'),
+            'vol. 23, no. 8, pp. 11086-11099, Aug. 2022, doi: 10.1109/****.2021.3100023.'),
 
     ('[5]', 'N. Forti, L. M. Millefiori, P. Braca, and P. Willett, "Prediction of vessel '
             'trajectories from AIS data via sequence-to-sequence recurrent neural networks," '
@@ -906,6 +910,13 @@ for ref_num, ref_text in refs:
 # =============================================================================
 # Save
 # =============================================================================
-out_path = "/root/workspace/Maritime-Anomaly-Detection-System/IEEE_Research_Paper.docx"
+import os
+
+out_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "IEEE_Research_Paper.docx"
+)
+
 doc.save(out_path)
 print(f"Saved: {out_path}")
+
