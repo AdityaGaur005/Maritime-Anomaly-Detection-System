@@ -1,0 +1,968 @@
+{
+  "generated_at": "2026-11-02T12:00:33+00:00",
+  "data": {
+    "incident_parquet": "C:\\Users\\Aditya Gaur\\Downloads\\.vscode\\maritime\\hybrid\\hybrid_features_incident_vessels_with_scores.parquet",
+    "clean_parquet": "C:\\Users\\Aditya Gaur\\Downloads\\.vscode\\maritime\\hybrid\\hybrid_features_clean_2020_with_scores.parquet",
+    "n_reference": 760204,
+    "n_reference_vessels": 115,
+    "n_same_pop_2020": 241215,
+    "n_current": 1253579,
+    "n_current_vessels": 892,
+    "n_features": 55,
+    "reference_years": [
+      "2017",
+      "2018",
+      "2019"
+    ],
+    "population_note": "Reference = normal windows of incident-prone vessels (2017-2019). This is what the model was calibrated against, not all normal maritime behaviour. Vessel types absent from this population will appear to drift even if their behaviour is constant.",
+    "in_sample_bias_note": "Reference model_scores are in-sample predictions (the model was trained on this data), so combined-drift KS is an upper bound on operational drift. The pure-temporal-drift comparison scores both sides in-sample and is unbiased."
+  },
+  "prediction": {
+    "ks_stat": 0.068233,
+    "ks_pvalue": 0.0,
+    "psi": 0.025296,
+    "severity": "stable",
+    "reference": {
+      "mean": 0.429867,
+      "median": 0.393769,
+      "p90": 0.772553,
+      "p95": 0.8351,
+      "p99": 0.927729
+    },
+    "current": {
+      "mean": 0.404253,
+      "median": 0.339302,
+      "p90": 0.770483,
+      "p95": 0.854068,
+      "p99": 0.94539
+    },
+    "p90_absolute_shift": -0.00207,
+    "p90_relative_shift": -0.002679
+  },
+  "pure_temporal_drift": {
+    "ks_stat": 0.129847,
+    "ks_pvalue": 0.0,
+    "psi": 0.090066,
+    "severity": "moderate",
+    "reference": {
+      "mean": 0.429867,
+      "median": 0.393769,
+      "p90": 0.772553,
+      "p95": 0.8351,
+      "p99": 0.927729
+    },
+    "current": {
+      "mean": 0.370022,
+      "median": 0.289813,
+      "p90": 0.721421,
+      "p95": 0.797893,
+      "p99": 0.909754
+    },
+    "p90_absolute_shift": -0.051133,
+    "p90_relative_shift": -0.066186
+  },
+  "thresholds": {
+    "anomaly_threshold": 0.85,
+    "update_threshold": 0.77,
+    "false_positive_rate": {
+      "reference": 0.04152,
+      "current": 0.052127,
+      "inflation_factor": 1.2554
+    },
+    "baseline_update_pass_rate": {
+      "reference": 0.897526,
+      "current": 0.899683
+    }
+  },
+  "auc": {
+    "reference_2017_2019": {
+      "n_windows": 768363,
+      "n_positives": 8159,
+      "auc_roc": 0.905257,
+      "average_precision": 0.281136
+    },
+    "current_2020": {
+      "n_windows": 243465,
+      "n_positives": 2250,
+      "auc_roc": 0.938282,
+      "average_precision": 0.443651
+    },
+    "auc_delta": 0.033025,
+    "per_incident_type_2020": [
+      {
+        "incident_type": "Property damage",
+        "n_windows": 43,
+        "auc_roc": 0.74637
+      },
+      {
+        "incident_type": "Route deviation",
+        "n_windows": 90,
+        "auc_roc": 0.810373
+      },
+      {
+        "incident_type": "Collision",
+        "n_windows": 27,
+        "auc_roc": 0.823559
+      },
+      {
+        "incident_type": "Container loss",
+        "n_windows": 44,
+        "auc_roc": 0.875641
+      },
+      {
+        "incident_type": "Loss/reduction of propulsion",
+        "n_windows": 83,
+        "auc_roc": 0.88375
+      },
+      {
+        "incident_type": "Loss of power",
+        "n_windows": 23,
+        "auc_roc": 0.930608
+      },
+      {
+        "incident_type": "Route deviation, Irregular tow",
+        "n_windows": 239,
+        "auc_roc": 0.949329
+      },
+      {
+        "incident_type": "Material failure",
+        "n_windows": 262,
+        "auc_roc": 0.95176
+      },
+      {
+        "incident_type": "Irregular tow",
+        "n_windows": 1227,
+        "auc_roc": 0.96195
+      },
+      {
+        "incident_type": "Loss/reduction of propulsion, Irregular tow",
+        "n_windows": 166,
+        "auc_roc": 0.964387
+      }
+    ]
+  },
+  "feature_drift": [
+    {
+      "feature": "vessel_type_code",
+      "ks_stat": 0.319901,
+      "psi": 4.156462,
+      "severity": "significant",
+      "ref_mean": 352.384926,
+      "cur_mean": 43.71997,
+      "ref_std": 456.622401,
+      "cur_std": 21.996093,
+      "mean_shift": -308.664956
+    },
+    {
+      "feature": "width_m",
+      "ks_stat": 0.226558,
+      "psi": 0.760278,
+      "severity": "significant",
+      "ref_mean": 10.82227,
+      "cur_mean": 10.466658,
+      "ref_std": 6.60249,
+      "cur_std": 8.559924,
+      "mean_shift": -0.355612
+    },
+    {
+      "feature": "length_m",
+      "ks_stat": 0.212092,
+      "psi": 0.976572,
+      "severity": "significant",
+      "ref_mean": 48.941146,
+      "cur_mean": 51.750141,
+      "ref_std": 62.958437,
+      "cur_std": 64.443787,
+      "mean_shift": 2.808996
+    },
+    {
+      "feature": "dist_from_vessel_centroid_km_mean",
+      "ks_stat": 0.193539,
+      "psi": 0.225677,
+      "severity": "moderate",
+      "ref_mean": 46.654427,
+      "cur_mean": 31.105819,
+      "ref_std": 71.243452,
+      "cur_std": 62.502069,
+      "mean_shift": -15.548608
+    },
+    {
+      "feature": "dist_from_vessel_centroid_km_max",
+      "ks_stat": 0.188229,
+      "psi": 0.202862,
+      "severity": "moderate",
+      "ref_mean": 48.393623,
+      "cur_mean": 32.478746,
+      "ref_std": 72.779033,
+      "cur_std": 64.384064,
+      "mean_shift": -15.914877
+    },
+    {
+      "feature": "lon_max",
+      "ks_stat": 0.158586,
+      "psi": 0.232452,
+      "severity": "moderate",
+      "ref_mean": -157.608789,
+      "cur_mean": -157.738397,
+      "ref_std": 0.74821,
+      "cur_std": 0.638134,
+      "mean_shift": -0.129608
+    },
+    {
+      "feature": "lon_mean",
+      "ks_stat": 0.15029,
+      "psi": 0.206207,
+      "severity": "moderate",
+      "ref_mean": -157.623621,
+      "cur_mean": -157.749691,
+      "ref_std": 0.739416,
+      "cur_std": 0.629539,
+      "mean_shift": -0.12607
+    },
+    {
+      "feature": "lon_min",
+      "ks_stat": 0.15022,
+      "psi": 0.183782,
+      "severity": "moderate",
+      "ref_mean": -157.638429,
+      "cur_mean": -157.761013,
+      "ref_std": 0.732336,
+      "cur_std": 0.624193,
+      "mean_shift": -0.122583
+    },
+    {
+      "feature": "lat_min",
+      "ks_stat": 0.146536,
+      "psi": 0.189487,
+      "severity": "moderate",
+      "ref_mean": 21.172917,
+      "cur_mean": 21.206414,
+      "ref_std": 0.430859,
+      "cur_std": 0.400938,
+      "mean_shift": 0.033497
+    },
+    {
+      "feature": "speed_zscore_vs_vessel",
+      "ks_stat": 0.139557,
+      "psi": 0.283961,
+      "severity": "significant",
+      "ref_mean": -0.00014,
+      "cur_mean": -0.000618,
+      "ref_std": 0.945234,
+      "cur_std": 0.920754,
+      "mean_shift": -0.000478
+    },
+    {
+      "feature": "lat_mean",
+      "ks_stat": 0.136761,
+      "psi": 0.147362,
+      "severity": "moderate",
+      "ref_mean": 21.182977,
+      "cur_mean": 21.214482,
+      "ref_std": 0.425145,
+      "cur_std": 0.395435,
+      "mean_shift": 0.031505
+    },
+    {
+      "feature": "delta_time_mean",
+      "ks_stat": 0.132446,
+      "psi": 0.097465,
+      "severity": "moderate",
+      "ref_mean": 189.492346,
+      "cur_mean": 265.134067,
+      "ref_std": 1464.943096,
+      "cur_std": 1957.14501,
+      "mean_shift": 75.641722
+    },
+    {
+      "feature": "lat_max",
+      "ks_stat": 0.127822,
+      "psi": 0.171674,
+      "severity": "moderate",
+      "ref_mean": 21.192929,
+      "cur_mean": 21.222426,
+      "ref_std": 0.421541,
+      "cur_std": 0.392564,
+      "mean_shift": 0.029496
+    },
+    {
+      "feature": "speed_over_ground_knots_max",
+      "ks_stat": 0.115345,
+      "psi": 0.089537,
+      "severity": "moderate",
+      "ref_mean": 4.116989,
+      "cur_mean": 3.235992,
+      "ref_std": 5.712835,
+      "cur_std": 5.931345,
+      "mean_shift": -0.880997
+    },
+    {
+      "feature": "computed_speed_knots_max",
+      "ks_stat": 0.115344,
+      "psi": 0.081776,
+      "severity": "moderate",
+      "ref_mean": 3.949435,
+      "cur_mean": 3.023655,
+      "ref_std": 5.005758,
+      "cur_std": 4.82185,
+      "mean_shift": -0.92578
+    },
+    {
+      "feature": "speed_over_ground_knots_mean",
+      "ks_stat": 0.115257,
+      "psi": 0.080936,
+      "severity": "moderate",
+      "ref_mean": 3.124805,
+      "cur_mean": 2.362678,
+      "ref_std": 4.389207,
+      "cur_std": 4.163453,
+      "mean_shift": -0.762127
+    },
+    {
+      "feature": "acceleration_knots_per_sec_min",
+      "ks_stat": 0.110551,
+      "psi": 0.056568,
+      "severity": "moderate",
+      "ref_mean": -0.011095,
+      "cur_mean": -0.010111,
+      "ref_std": 0.036994,
+      "cur_std": 0.048259,
+      "mean_shift": 0.000984
+    },
+    {
+      "feature": "acceleration_knots_per_sec_max",
+      "ks_stat": 0.110458,
+      "psi": 0.055764,
+      "severity": "moderate",
+      "ref_mean": 0.010827,
+      "cur_mean": 0.009826,
+      "ref_std": 0.036147,
+      "cur_std": 0.04692,
+      "mean_shift": -0.001001
+    },
+    {
+      "feature": "acceleration_knots_per_sec_std",
+      "ks_stat": 0.10849,
+      "psi": 0.059791,
+      "severity": "moderate",
+      "ref_mean": 0.00409,
+      "cur_mean": 0.003628,
+      "ref_std": 0.010209,
+      "cur_std": 0.013235,
+      "mean_shift": -0.000462
+    },
+    {
+      "feature": "trans_err_acceleration",
+      "ks_stat": 0.10827,
+      "psi": 0.071399,
+      "severity": "moderate",
+      "ref_mean": 0.020829,
+      "cur_mean": 0.027667,
+      "ref_std": 2.550181,
+      "cur_std": 4.064288,
+      "mean_shift": 0.006839
+    },
+    {
+      "feature": "trans_err_speed",
+      "ks_stat": 0.107716,
+      "psi": 0.070937,
+      "severity": "moderate",
+      "ref_mean": 0.002839,
+      "cur_mean": 0.002927,
+      "ref_std": 0.071934,
+      "cur_std": 0.10933,
+      "mean_shift": 8.8e-05
+    },
+    {
+      "feature": "lstm_err_acceleration",
+      "ks_stat": 0.107376,
+      "psi": 0.061998,
+      "severity": "moderate",
+      "ref_mean": 0.67068,
+      "cur_mean": 1.102404,
+      "ref_std": 17.129206,
+      "cur_std": 26.162697,
+      "mean_shift": 0.431724
+    },
+    {
+      "feature": "lstm_err_lon",
+      "ks_stat": 0.102157,
+      "psi": 0.070162,
+      "severity": "moderate",
+      "ref_mean": 0.00029,
+      "cur_mean": 0.000216,
+      "ref_std": 0.000747,
+      "cur_std": 0.000688,
+      "mean_shift": -7.5e-05
+    },
+    {
+      "feature": "computed_speed_knots_mean",
+      "ks_stat": 0.101537,
+      "psi": 0.067622,
+      "severity": "moderate",
+      "ref_mean": 3.105979,
+      "cur_mean": 2.340557,
+      "ref_std": 4.351218,
+      "cur_std": 4.090586,
+      "mean_shift": -0.765422
+    },
+    {
+      "feature": "lat_std",
+      "ks_stat": 0.100171,
+      "psi": 0.057443,
+      "severity": "moderate",
+      "ref_mean": 0.006181,
+      "cur_mean": 0.004979,
+      "ref_std": 0.021346,
+      "cur_std": 0.022654,
+      "mean_shift": -0.001202
+    },
+    {
+      "feature": "lon_std",
+      "ks_stat": 0.099135,
+      "psi": 0.05749,
+      "severity": "stable",
+      "ref_mean": 0.009117,
+      "cur_mean": 0.007011,
+      "ref_std": 0.028015,
+      "cur_std": 0.032277,
+      "mean_shift": -0.002106
+    },
+    {
+      "feature": "speed_over_ground_knots_std",
+      "ks_stat": 0.098307,
+      "psi": 0.05584,
+      "severity": "stable",
+      "ref_mean": 0.527592,
+      "cur_mean": 0.411547,
+      "ref_std": 1.317871,
+      "cur_std": 1.177864,
+      "mean_shift": -0.116045
+    },
+    {
+      "feature": "trans_err_lat",
+      "ks_stat": 0.097868,
+      "psi": 0.046669,
+      "severity": "stable",
+      "ref_mean": 0.000786,
+      "cur_mean": 0.000595,
+      "ref_std": 0.002299,
+      "cur_std": 0.002005,
+      "mean_shift": -0.000191
+    },
+    {
+      "feature": "trans_err_agg",
+      "ks_stat": 0.096221,
+      "psi": 0.05854,
+      "severity": "stable",
+      "ref_mean": 0.006524,
+      "cur_mean": 0.007323,
+      "ref_std": 0.368358,
+      "cur_std": 0.584684,
+      "mean_shift": 0.000799
+    },
+    {
+      "feature": "lstm_err_heading_change",
+      "ks_stat": 0.096001,
+      "psi": 0.070997,
+      "severity": "stable",
+      "ref_mean": 0.388424,
+      "cur_mean": 0.368806,
+      "ref_std": 0.694283,
+      "cur_std": 0.617426,
+      "mean_shift": -0.019618
+    },
+    {
+      "feature": "heading_change_deg_mean",
+      "ks_stat": 0.092763,
+      "psi": 0.054129,
+      "severity": "stable",
+      "ref_mean": 18.196107,
+      "cur_mean": 17.30788,
+      "ref_std": 25.641166,
+      "cur_std": 25.251472,
+      "mean_shift": -0.888227
+    },
+    {
+      "feature": "computed_speed_knots_std",
+      "ks_stat": 0.09271,
+      "psi": 0.044582,
+      "severity": "stable",
+      "ref_mean": 0.470836,
+      "cur_mean": 0.353721,
+      "ref_std": 1.195553,
+      "cur_std": 0.988132,
+      "mean_shift": -0.117115
+    },
+    {
+      "feature": "course_over_ground_deg_std",
+      "ks_stat": 0.092275,
+      "psi": 0.056974,
+      "severity": "stable",
+      "ref_mean": 39.841489,
+      "cur_mean": 36.913712,
+      "ref_std": 45.946765,
+      "cur_std": 44.433551,
+      "mean_shift": -2.927776
+    },
+    {
+      "feature": "heading_zscore_vs_vessel",
+      "ks_stat": 0.091731,
+      "psi": 0.056532,
+      "severity": "stable",
+      "ref_mean": -5.6e-05,
+      "cur_mean": 4.2e-05,
+      "ref_std": 0.532582,
+      "cur_std": 0.509424,
+      "mean_shift": 9.9e-05
+    },
+    {
+      "feature": "delta_time_max",
+      "ks_stat": 0.090078,
+      "psi": 0.071142,
+      "severity": "stable",
+      "ref_mean": 2181.514251,
+      "cur_mean": 3921.679092,
+      "ref_std": 43189.42079,
+      "cur_std": 56243.727937,
+      "mean_shift": 1740.164841
+    },
+    {
+      "feature": "heading_change_deg_max",
+      "ks_stat": 0.08916,
+      "psi": 0.057343,
+      "severity": "stable",
+      "ref_mean": 60.999521,
+      "cur_mean": 60.498246,
+      "ref_std": 67.38912,
+      "cur_std": 68.425697,
+      "mean_shift": -0.501274
+    },
+    {
+      "feature": "trans_err_heading_change",
+      "ks_stat": 0.089108,
+      "psi": 0.053053,
+      "severity": "stable",
+      "ref_mean": 0.0112,
+      "cur_mean": 0.010158,
+      "ref_std": 0.016583,
+      "cur_std": 0.021169,
+      "mean_shift": -0.001042
+    },
+    {
+      "feature": "heading_change_deg_std",
+      "ks_stat": 0.088964,
+      "psi": 0.057991,
+      "severity": "stable",
+      "ref_mean": 16.906788,
+      "cur_mean": 16.403182,
+      "ref_std": 20.363005,
+      "cur_std": 19.869059,
+      "mean_shift": -0.503606
+    },
+    {
+      "feature": "lstm_err_agg",
+      "ks_stat": 0.088019,
+      "psi": 0.057518,
+      "severity": "stable",
+      "ref_mean": 0.184377,
+      "cur_mean": 0.241564,
+      "ref_std": 2.540385,
+      "cur_std": 3.834289,
+      "mean_shift": 0.057186
+    },
+    {
+      "feature": "lstm_err_speed",
+      "ks_stat": 0.08521,
+      "psi": 0.040862,
+      "severity": "stable",
+      "ref_mean": 0.044327,
+      "cur_mean": 0.047988,
+      "ref_std": 1.644591,
+      "cur_std": 0.977038,
+      "mean_shift": 0.003661
+    },
+    {
+      "feature": "speed_over_ground_knots_min",
+      "ks_stat": 0.084702,
+      "psi": 0.039331,
+      "severity": "stable",
+      "ref_mean": 2.408114,
+      "cur_mean": 1.823564,
+      "ref_std": 3.991972,
+      "cur_std": 3.806853,
+      "mean_shift": -0.58455
+    },
+    {
+      "feature": "computed_speed_knots_min",
+      "ks_stat": 0.084608,
+      "psi": 0.039384,
+      "severity": "stable",
+      "ref_mean": 2.451601,
+      "cur_mean": 1.848985,
+      "ref_std": 3.999496,
+      "cur_std": 3.757455,
+      "mean_shift": -0.602616
+    },
+    {
+      "feature": "lstm_err_computed_speed",
+      "ks_stat": 0.084045,
+      "psi": 0.033683,
+      "severity": "stable",
+      "ref_mean": 0.019183,
+      "cur_mean": 0.021582,
+      "ref_std": 0.08382,
+      "cur_std": 0.129111,
+      "mean_shift": 0.002399
+    },
+    {
+      "feature": "lstm_err_lat",
+      "ks_stat": 0.08282,
+      "psi": 0.039501,
+      "severity": "stable",
+      "ref_mean": 0.002148,
+      "cur_mean": 0.001857,
+      "ref_std": 0.00558,
+      "cur_std": 0.006092,
+      "mean_shift": -0.000291
+    },
+    {
+      "feature": "trans_err_computed_speed",
+      "ks_stat": 0.080756,
+      "psi": 0.033123,
+      "severity": "stable",
+      "ref_mean": 0.003716,
+      "cur_mean": 0.003833,
+      "ref_std": 0.024245,
+      "cur_std": 0.028335,
+      "mean_shift": 0.000118
+    },
+    {
+      "feature": "trans_err_lon",
+      "ks_stat": 0.078013,
+      "psi": 0.043829,
+      "severity": "stable",
+      "ref_mean": 0.000149,
+      "cur_mean": 0.000127,
+      "ref_std": 0.000414,
+      "cur_std": 0.000502,
+      "mean_shift": -2.1e-05
+    },
+    {
+      "feature": "trans_err_course",
+      "ks_stat": 0.072876,
+      "psi": 0.042665,
+      "severity": "stable",
+      "ref_mean": 0.006149,
+      "cur_mean": 0.005951,
+      "ref_std": 0.011905,
+      "cur_std": 0.01497,
+      "mean_shift": -0.000198
+    },
+    {
+      "feature": "delta_time_std",
+      "ks_stat": 0.053238,
+      "psi": 0.057395,
+      "severity": "stable",
+      "ref_mean": 384.010166,
+      "cur_mean": 697.846556,
+      "ref_std": 7764.301014,
+      "cur_std": 10151.62154,
+      "mean_shift": 313.836389
+    },
+    {
+      "feature": "acceleration_knots_per_sec_mean",
+      "ks_stat": 0.050783,
+      "psi": 0.048371,
+      "severity": "stable",
+      "ref_mean": -1.7e-05,
+      "cur_mean": -2.1e-05,
+      "ref_std": 0.00138,
+      "cur_std": 0.001272,
+      "mean_shift": -4e-06
+    },
+    {
+      "feature": "course_over_ground_deg_max",
+      "ks_stat": 0.050104,
+      "psi": 0.044645,
+      "severity": "stable",
+      "ref_mean": 251.974432,
+      "cur_mean": 249.253062,
+      "ref_std": 107.028912,
+      "cur_std": 112.31002,
+      "mean_shift": -2.72137
+    },
+    {
+      "feature": "course_over_ground_deg_mean",
+      "ks_stat": 0.04373,
+      "psi": 0.045115,
+      "severity": "stable",
+      "ref_mean": 189.836413,
+      "cur_mean": 191.13162,
+      "ref_std": 90.890902,
+      "cur_std": 97.138226,
+      "mean_shift": 1.295207
+    },
+    {
+      "feature": "heading_change_deg_min",
+      "ks_stat": 0.042237,
+      "psi": 0.008192,
+      "severity": "stable",
+      "ref_mean": 0.578797,
+      "cur_mean": 0.590112,
+      "ref_std": 1.814806,
+      "cur_std": 1.860121,
+      "mean_shift": 0.011315
+    },
+    {
+      "feature": "course_over_ground_deg_min",
+      "ks_stat": 0.040261,
+      "psi": 0.031996,
+      "severity": "stable",
+      "ref_mean": 120.448521,
+      "cur_mean": 125.274081,
+      "ref_std": 113.515887,
+      "cur_std": 117.202889,
+      "mean_shift": 4.825561
+    },
+    {
+      "feature": "lstm_err_course",
+      "ks_stat": 0.025675,
+      "psi": 0.008462,
+      "severity": "stable",
+      "ref_mean": 0.165588,
+      "cur_mean": 0.148093,
+      "ref_std": 0.269984,
+      "cur_std": 0.246093,
+      "mean_shift": -0.017495
+    },
+    {
+      "feature": "baseline_is_fallback",
+      "ks_stat": 0.0,
+      "psi": 0.0,
+      "severity": "stable",
+      "ref_mean": 0.0,
+      "cur_mean": 0.0,
+      "ref_std": 0.0,
+      "cur_std": 0.0,
+      "mean_shift": 0.0
+    }
+  ],
+  "population": {
+    "n_unique_vessels_reference": 115,
+    "n_unique_vessels_current": 892,
+    "n_new_vessels_in_current": 819,
+    "vessel_type_shift": [
+      {
+        "vessel_type_code": 30,
+        "ref_pct": 19.16,
+        "cur_pct": 40.63,
+        "delta_pct": 21.47
+      },
+      {
+        "vessel_type_code": 1025,
+        "ref_pct": 20.84,
+        "cur_pct": 0.0,
+        "delta_pct": -20.84
+      },
+      {
+        "vessel_type_code": 31,
+        "ref_pct": 31.44,
+        "cur_pct": 19.13,
+        "delta_pct": -12.3
+      },
+      {
+        "vessel_type_code": 90,
+        "ref_pct": 2.84,
+        "cur_pct": 12.11,
+        "delta_pct": 9.27
+      },
+      {
+        "vessel_type_code": 1001,
+        "ref_pct": 6.93,
+        "cur_pct": 0.0,
+        "delta_pct": -6.93
+      },
+      {
+        "vessel_type_code": 37,
+        "ref_pct": 0.39,
+        "cur_pct": 5.74,
+        "delta_pct": 5.35
+      },
+      {
+        "vessel_type_code": 36,
+        "ref_pct": 0.16,
+        "cur_pct": 5.09,
+        "delta_pct": 4.93
+      },
+      {
+        "vessel_type_code": 70,
+        "ref_pct": 1.18,
+        "cur_pct": 4.15,
+        "delta_pct": 2.97
+      },
+      {
+        "vessel_type_code": 60,
+        "ref_pct": 9.23,
+        "cur_pct": 6.57,
+        "delta_pct": -2.65
+      },
+      {
+        "vessel_type_code": 52,
+        "ref_pct": 2.6,
+        "cur_pct": 0.08,
+        "delta_pct": -2.51
+      },
+      {
+        "vessel_type_code": 80,
+        "ref_pct": 1.02,
+        "cur_pct": 3.33,
+        "delta_pct": 2.3
+      },
+      {
+        "vessel_type_code": 1004,
+        "ref_pct": 1.3,
+        "cur_pct": 0.0,
+        "delta_pct": -1.3
+      },
+      {
+        "vessel_type_code": 50,
+        "ref_pct": 0.0,
+        "cur_pct": 1.29,
+        "delta_pct": 1.29
+      },
+      {
+        "vessel_type_code": 1005,
+        "ref_pct": 1.29,
+        "cur_pct": 0.0,
+        "delta_pct": -1.29
+      },
+      {
+        "vessel_type_code": 0,
+        "ref_pct": 0.0,
+        "cur_pct": 0.77,
+        "delta_pct": 0.77
+      },
+      {
+        "vessel_type_code": 1020,
+        "ref_pct": 0.53,
+        "cur_pct": 0.0,
+        "delta_pct": -0.53
+      },
+      {
+        "vessel_type_code": 35,
+        "ref_pct": 0.0,
+        "cur_pct": 0.36,
+        "delta_pct": 0.36
+      },
+      {
+        "vessel_type_code": 1024,
+        "ref_pct": 0.36,
+        "cur_pct": 0.0,
+        "delta_pct": -0.36
+      },
+      {
+        "vessel_type_code": 1019,
+        "ref_pct": 0.3,
+        "cur_pct": 0.0,
+        "delta_pct": -0.3
+      },
+      {
+        "vessel_type_code": 32,
+        "ref_pct": 0.0,
+        "cur_pct": 0.23,
+        "delta_pct": 0.23
+      },
+      {
+        "vessel_type_code": 1012,
+        "ref_pct": 0.21,
+        "cur_pct": 0.0,
+        "delta_pct": -0.21
+      },
+      {
+        "vessel_type_code": 1010,
+        "ref_pct": 0.14,
+        "cur_pct": 0.0,
+        "delta_pct": -0.14
+      },
+      {
+        "vessel_type_code": 79,
+        "ref_pct": 0.0,
+        "cur_pct": 0.11,
+        "delta_pct": 0.11
+      },
+      {
+        "vessel_type_code": 1018,
+        "ref_pct": 0.1,
+        "cur_pct": 0.0,
+        "delta_pct": -0.1
+      },
+      {
+        "vessel_type_code": 34,
+        "ref_pct": 0.0,
+        "cur_pct": 0.09,
+        "delta_pct": 0.09
+      },
+      {
+        "vessel_type_code": 72,
+        "ref_pct": 0.0,
+        "cur_pct": 0.09,
+        "delta_pct": 0.09
+      },
+      {
+        "vessel_type_code": 99,
+        "ref_pct": 0.0,
+        "cur_pct": 0.07,
+        "delta_pct": 0.07
+      },
+      {
+        "vessel_type_code": 38,
+        "ref_pct": 0.0,
+        "cur_pct": 0.06,
+        "delta_pct": 0.06
+      },
+      {
+        "vessel_type_code": 89,
+        "ref_pct": 0.0,
+        "cur_pct": 0.04,
+        "delta_pct": 0.04
+      },
+      {
+        "vessel_type_code": 71,
+        "ref_pct": 0.0,
+        "cur_pct": 0.03,
+        "delta_pct": 0.03
+      },
+      {
+        "vessel_type_code": 53,
+        "ref_pct": 0.0,
+        "cur_pct": 0.01,
+        "delta_pct": 0.01
+      },
+      {
+        "vessel_type_code": 33,
+        "ref_pct": 0.0,
+        "cur_pct": 0.0,
+        "delta_pct": 0.0
+      },
+      {
+        "vessel_type_code": 47,
+        "ref_pct": 0.0,
+        "cur_pct": 0.0,
+        "delta_pct": 0.0
+      }
+    ],
+    "reference_geo_bbox": {
+      "lat_min": 18.2242,
+      "lat_max": 24.0242,
+      "lon_min": -161.1625,
+      "lon_max": -153.7052
+    },
+    "current_geo_bbox": {
+      "lat_min": 18.149,
+      "lat_max": 24.0292,
+      "lon_min": -161.6498,
+      "lon_max": -153.3618
+    }
+  }
+}
