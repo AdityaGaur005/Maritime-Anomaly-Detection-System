@@ -459,16 +459,22 @@ def analyse_auc_degradation(inc: pd.DataFrame) -> dict:
 
     per_type = []
     if "incident_type" in inc.columns and cur_auc:
-        for itype, grp in cur_df.groupby("incident_type"):
-            if grp["label"].nunique() < 2 or len(grp) < 20:
+        # FIXED: Group only the positives, then combine with all negatives
+        # to calculate a valid AUC (needs both classes).
+        neg_df = cur_df[cur_df["label"] == 0]
+        pos_df = cur_df[cur_df["label"] == 1]
+        
+        for itype in pos_df["incident_type"].dropna().unique():
+            pos_subset = pos_df[pos_df["incident_type"] == itype]
+            if len(pos_subset) < 20:
                 continue
+            combined = pd.concat([pos_subset, neg_df])
             try:
+                auc = roc_auc_score(combined["label"], combined["model_score"])
                 per_type.append({
                     "incident_type": str(itype),
-                    "n_windows": int(len(grp)),
-                    "auc_roc": round(
-                        float(roc_auc_score(grp["label"], grp["model_score"])), 6
-                    ),
+                    "n_windows": int(len(pos_subset)),
+                    "auc_roc": round(float(auc), 6),
                 })
             except Exception:
                 pass
@@ -554,9 +560,8 @@ def write_markdown(path: Path, r: dict) -> None:
             f"\n**KS:** {pt['ks_stat']:.4f} &nbsp;|&nbsp; "
             f"**PSI:** {pt['psi']:.4f} &nbsp;|&nbsp; **Severity:** {pt['severity']}",
             "\n> Compare the KS here with the combined drift KS above. "
-            "The gap quantifies the **population composition effect** "
-            "(how much of the overall drift is explained by the different vessel mix "
-            "rather than by the year changing).",
+            "The combined drift KS is lower because the 2020 population shift "
+            "toward lower-scoring vessel types (fishing) masks the temporal drift.",
         ]
     else:
         lines.append("\n*Not computed -- insufficient same-population 2020 windows.*\n")
@@ -646,19 +651,32 @@ def write_markdown(path: Path, r: dict) -> None:
         "\n---\n",
         "## 6. Suggested Trigger Thresholds for Phase 8 Retraining\n",
     ]
-    ks = p["ks_stat"]
-    p90_shift = p["p90_relative_shift"]
+    
+    # FIXED: Calculate trigger thresholds based on the *pure temporal* drift
+    # (the same vessels shifting over time), not the artificially lowered combined drift.
+    if pt:
+        ks_ref = pt["ks_stat"]
+        p90_ref = abs(pt["p90_relative_shift"])
+        trigger_ks = round(ks_ref * 0.75, 3)
+        trigger_p90 = round(p90_ref * 0.75, 3)
+        context_str = "(calibrated against pure temporal drift)"
+    else:
+        ks_ref = p["ks_stat"]
+        p90_ref = abs(p["p90_relative_shift"])
+        trigger_ks = round(ks_ref * 0.75, 3)
+        trigger_p90 = round(p90_ref * 0.75, 3)
+        context_str = "(calibrated against combined drift)"
+
     fpr_inflation = t["false_positive_rate"]["inflation_factor"]
-    trigger_ks = round(max(0.05, ks * 0.67), 3)
 
     lines += [
-        "These thresholds are calibrated from this analysis -- not arbitrary.\n",
+        f"These thresholds are calibrated from this analysis {context_str} -- not arbitrary.\n",
         "| Trigger | Threshold | Rationale |",
         "|---|---|---|",
         f"| Primary: KS statistic | > **{trigger_ks}** | "
-        f"~67% of observed 2017->2020 shift (KS={ks:.3f}) |",
-        f"| Secondary: P90 relative shift | > **15%** | "
-        f"Observed shift was {p90_shift:+.1%}; 15% fires before full drift is reached |",
+        f"75% of observed 1-year shift (KS={ks_ref:.3f}) |",
+        f"| Secondary: P90 relative shift | > **{trigger_p90:.1%}** | "
+        f"75% of observed 1-year shift ({p90_ref:.1%}) |",
         f"| Guard: FPR inflation | > **2x** | "
         f"Observed inflation was {fpr_inflation:.2f}x |",
         "\n> **Usage:** compute these metrics on a rolling 7-day window of live scores "
@@ -866,16 +884,16 @@ def main(argv=None):
     write_figures(args.output, ref, cur, prediction, feature_drift, same_pop_2020)
 
     print(f"\n{'='*60}")
-    print(f"  KS statistic  : {prediction['ks_stat']:.4f}  ({prediction['severity']})")
-    print(f"  P90 shift     : {prediction['p90_relative_shift']:+.1%}")
-    print(f"  FPR inflation : {fpr_inf:.2f}x")
+    print(f"  Combined drift KS : {prediction['ks_stat']:.4f}  ({prediction['severity']})")
+    print(f"  Combined P90 shift: {prediction['p90_relative_shift']:+.1%}")
+    print(f"  FPR inflation     : {fpr_inf:.2f}x")
     if auc["auc_delta"] is not None:
-        print(f"  AUC delta     : {auc['auc_delta']:+.4f}")
+        print(f"  AUC delta         : {auc['auc_delta']:+.4f}")
     if pure_temporal is not None:
-        pop_share = ((prediction["ks_stat"] - pure_temporal["ks_stat"])
-                     / max(prediction["ks_stat"], 1e-9))
-        print(f"  Pure-temporal KS: {pure_temporal['ks_stat']:.4f}  "
-              f"(population effect share: {pop_share:.0%})")
+        print(f"  Temporal drift KS : {pure_temporal['ks_stat']:.4f}  ({pure_temporal['severity']})")
+        print(f"  Temporal P90 shift: {pure_temporal['p90_relative_shift']:+.1%}")
+        # Clarified print statement
+        print(f"  -> Population shift masked the temporal drift: Combined KS is {prediction['ks_stat']:.4f} vs Temporal KS {pure_temporal['ks_stat']:.4f}")
     print(f"{'='*60}")
     return 0
 
