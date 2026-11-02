@@ -1,7 +1,7 @@
 """
 Generate IEEE-formatted research paper as a Word .docx file.
-Run: python3 generate_paper.py
-Output: IEEE_Research_Paper.docx
+Run: python generate_paper.py
+Output: ieee_research_paper_2.docx
 """
 
 from docx import Document
@@ -10,7 +10,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-import copy
+import os
 
 doc = Document()
 
@@ -634,7 +634,7 @@ body(
     "Average Precision of 0.296 ± 0.049 reflects the challenging class imbalance "
     "(positive rate approximately 1.03%). Per-fold best-iteration spread of "
     "19 to 104 rounds reflects the small per-fold vessel count (~17 vessels "
-    "in each validation group) and i****pected given the limited number of "
+    "in each validation group) and is expected given the limited number of "
     "labelled incident vessels (145 total).",
     indent=True
 )
@@ -739,7 +739,7 @@ body(
     "composition shift: the reference is 31.4% tugs (type 31) and 20.8% of "
     "a proprietary incident-specific type (1025), while 2020 clean traffic "
     "is 40.6% fishing vessels (type 30), 5.7% pleasure craft (type 37), and "
-    "5.1% sailing vessels (type 36). Despite thi****treme feature-level drift, "
+    "5.1% sailing vessels (type 36). Despite this extreme feature-level drift, "
     "the output distribution remains stable, demonstrating that the XGBoost "
     "model learned to discriminate anomalies via kinematic behaviour (trajectory "
     "reconstruction errors, speed patterns) rather than vessel-type metadata. "
@@ -771,7 +771,7 @@ body(
 subheading("F", "Discussion of Limitations")
 body(
     "Several limitations should be acknowledged. First, the reference set "
-    "consist****clusively of incident-prone vessels (tugs, tankers, cargo); "
+    "consists exclusively of incident-prone vessels (tugs, tankers, cargo); "
     "vessel types absent from this population (fishing, pleasure craft) "
     "will appear to drift even if their behaviour is constant, as their "
     "dynamics are not represented in the reference. Second, reference "
@@ -910,13 +910,10 @@ for ref_num, ref_text in refs:
 # =============================================================================
 # Save
 # =============================================================================
-import os
-
 out_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    "IEEE_Research_Paper.docx"
+    "ieee_research_paper_2.docx"
 )
 
 doc.save(out_path)
 print(f"Saved: {out_path}")
-
